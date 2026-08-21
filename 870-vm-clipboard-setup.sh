@@ -90,7 +90,7 @@ else
     echo "  XDG autostart entry already present"
 fi
 
-# --- ~/.xprofile injection (for dwm via LightDM) ---
+# --- ~/.xprofile injection (for dwm via SDDM) ---
 XPROFILE="$HOME/.xprofile"
 if grep -q "spice-vdagent" "$XPROFILE" 2>/dev/null; then
     echo "  ~/.xprofile already has spice-vdagent"

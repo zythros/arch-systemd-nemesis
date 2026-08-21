@@ -4,7 +4,7 @@ source "$(dirname "$(readlink -f "$0")")/lib.sh"
 ##################################################################################################################################
 # Author    : zythros
 # Purpose   : Configure Xorg and kernel for dual NVIDIA GPUs
-#             Fixes modesetting/glamor crash that prevents SDDM/LightDM from starting
+#             Fixes modesetting/glamor crash that prevents SDDM from starting
 ##################################################################################################################################
 #
 #   DO NOT JUST RUN THIS. EXAMINE AND JUDGE. RUN AT YOUR OWN RISK.
@@ -232,6 +232,6 @@ echo "      AutoAddGPU false — prevents secondary GPU from being grabbed by mo
 echo "  - kernel param: $MODESET_PARAM"
 echo
 echo "Fixes: Xorg modesetting/glamor crash with dual NVIDIA GPUs"
-echo "       that prevented SDDM/LightDM from reaching the login screen."
+echo "       that prevented SDDM from reaching the login screen."
 echo
 tput sgr0

@@ -171,7 +171,7 @@ echo
 echo "Patching dwm config.h ..."
 
 # Use the absolute path so dwm's execvp finds the wrapper regardless of
-# what PATH LightDM passes to the X session (fish PATH is not inherited).
+# what PATH SDDM passes to the X session (fish PATH is not inherited).
 python3 - "$DWM_SRC/config.h" "$WRAPPER" <<'PYPATCH'
 import sys, re
 path, wrapper = sys.argv[1], sys.argv[2]

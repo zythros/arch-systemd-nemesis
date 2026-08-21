@@ -1,9 +1,9 @@
 # arch-systemd-nemesis
 
-Numbered post-install setup scripts for **Arch Linux + systemd + dwm**,
+Numbered post-install setup scripts for **Arch Linux + systemd + dwm + SDDM**,
 mirroring the run-standalone-or-via-fzf-menu structure of
 [`zythros/artix-nemesis`](https://github.com/zythros/artix-nemesis), which
-targets Artix Linux + OpenRC + dwm.
+targets Artix Linux + OpenRC + dwm + LightDM.
 
 Companion repos: [`zythros/dwm`](https://github.com/zythros/dwm) (personal
 dwm fork), [`zythros/slstatus`](https://github.com/zythros/slstatus)

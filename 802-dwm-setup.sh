@@ -5,12 +5,12 @@ source "$(dirname "$(readlink -f "$0")")/lib.sh"
 # Author    : zythros
 # Purpose   : Set up dwm as a desktop environment option.
 #             Clones github.com/zythros/dwm, builds from source, installs,
-#             writes a LightDM xsessions entry, and writes ~/.dwm/keybindings.txt.
+#             writes an SDDM xsessions entry, and writes ~/.dwm/keybindings.txt.
 #
 #             Unlike artix-nemesis's 802, this does NOT wrap the session in
 #             dbus-launch. On a systemd box, pam_systemd + dbus-user-session
 #             auto-provision a per-login session D-Bus bus for any greeter
-#             session (LightDM included) — dwm doesn't need to start one
+#             session (SDDM included) — dwm doesn't need to start one
 #             itself. A plain `Exec=dwm` session is enough for flameshot and
 #             friends to find a working bus.
 ##################################################################################################################################
@@ -107,7 +107,7 @@ echo "dwm installed."
 tput sgr0
 
 ##################################################################################################################################
-# 5. Create LightDM xsessions entry (idempotent)
+# 5. Create SDDM xsessions entry (idempotent)
 ##################################################################################################################################
 
 echo
@@ -203,7 +203,7 @@ echo "##############################################################"
 echo "###################  $(basename $0) done"
 echo "##############################################################"
 echo
-echo "dwm is now available as a session in LightDM."
+echo "dwm is now available as a session in SDDM."
 echo "Keybindings: $KEYBINDINGS_FILE"
 echo "Source:      $DWM_SRC"
 echo "To rebuild:  make -C $DWM_SRC clean && make -C $DWM_SRC && sudo make -C $DWM_SRC install"

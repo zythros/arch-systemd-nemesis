@@ -170,17 +170,19 @@ tput sgr0
 
 ##################################################################################################################################
 # 4. Configure autostart via ~/.xprofile
-#    LightDM sources ~/.xprofile before launching any session.
+#    SDDM sources ~/.xprofile before launching any session (native support
+#    since SDDM 0.18 — no generic Xsession wrapper script required, unlike
+#    some older display managers).
 ##################################################################################################################################
 
 XPROFILE="$HOME/.xprofile"
 WALLPAPER_LINE='~/.local/bin/wallpaper.sh restore &'
 
-# Ensure ~/.local/bin is in PATH for the X session. LightDM sources ~/.xprofile
+# Ensure ~/.local/bin is in PATH for the X session. SDDM sources ~/.xprofile
 # unconditionally regardless of login shell, so this covers fish, bash, sh, etc.
 # Without this, dwm cannot find binaries like dmenu-desktop or wallpaper.sh via
-# execvp when the login shell is anything other than fish (fish exports its PATH
-# via a special fish --login hook in LightDM's Xsession script).
+# execvp when the login shell is anything other than bash/sh (fish's PATH
+# exports don't carry over automatically to a POSIX-sourced ~/.xprofile).
 PATH_LINE='export PATH="$HOME/.local/bin:$PATH"'
 
 echo
@@ -231,7 +233,7 @@ echo
 echo "Wallpaper system installed:"
 echo "  Script:     ~/.local/bin/wallpaper.sh"
 echo "  Wallpapers: $WALLPAPER_DIR ($WALLPAPER_COUNT images)"
-echo "  Autostart:  ~/.xprofile (wallpaper.sh restore, runs on LightDM login)"
+echo "  Autostart:  ~/.xprofile (wallpaper.sh restore, runs on SDDM login)"
 echo "  PATH:       ~/.xprofile exports ~/.local/bin (works for any login shell)"
 echo
 if [ "$WALLPAPER_COUNT" -eq 0 ]; then

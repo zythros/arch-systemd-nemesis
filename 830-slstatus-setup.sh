@@ -7,7 +7,7 @@ source "$(dirname "$(readlink -f "$0")")/lib.sh"
 #
 # dwm differences vs arch-nemesis 830:
 #   - Clone to ~/.local/src/slstatus (not ~/.config/arco-chadwm/slstatus)
-#   - Autostart via ~/.xprofile (LightDM sources unconditionally for dwm)
+#   - Autostart via ~/.xprofile (SDDM sources unconditionally for dwm)
 #   - Volume component stripped from config.h at build time (not needed)
 ##################################################################################################################################
 #

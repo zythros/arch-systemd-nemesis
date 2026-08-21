@@ -6,6 +6,20 @@ importantly — *why*, since "just swap `rc-service` for `systemctl`" undersells
 how much of artix-nemesis exists specifically to work around things systemd
 does natively. Written at port time, 2026-08-21.
 
+## Display manager: SDDM instead of LightDM
+
+Independent of the init-system port, this target machine uses SDDM rather
+than artix-nemesis's LightDM. Mechanically this barely matters — both read
+`.desktop` session files from `/usr/share/xsessions/`, so `802`'s
+`dwm.desktop` write is unchanged (only the comments/summary text were
+updated to say SDDM). The one behavioral assumption worth spot-checking on
+first login: `~/.xprofile` autostart (used by `810`/`830`/`861`/`870` for
+wallpaper/slstatus/spice-vdagent) relies on SDDM sourcing `~/.xprofile`
+before starting the session — true natively since SDDM 0.18, no generic
+`Xsession` wrapper script needed (unlike some older display managers) — but
+confirm it actually fires after the first real login rather than trusting
+this note.
+
 ## Removed entirely — systemd already does this
 
 - **`lib.sh`'s pacman "nohook" machinery.** artix-nemesis has to run every
@@ -19,8 +33,9 @@ does natively. Written at port time, 2026-08-21.
 - **`802`'s `dbus-launch --exit-with-session dwm` session wrapper.** Needed
   on Artix because dwm doesn't start a session bus and nothing else does
   either. On systemd, `pam_systemd` + `dbus-user-session` auto-provision a
-  per-login session bus for any greeter session (LightDM included) — a plain
-  `Exec=dwm` session file is enough for flameshot and friends to find a bus.
+  per-login session bus for any greeter session (SDDM included, which this
+  repo targets instead of artix-nemesis's LightDM) — a plain `Exec=dwm`
+  session file is enough for flameshot and friends to find a bus.
 - **`803`'s `podman` shared-root OpenRC service.** artix-nemesis writes a
   custom `/etc/init.d/shared-root` running `mount --make-rshared /` at boot,
   because OpenRC has no equivalent of what systemd's
