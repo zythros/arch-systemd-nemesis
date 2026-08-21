@@ -132,6 +132,27 @@ here); summary:
   change partitioning, mount points, or bootloader even on identical
   hardware.
 
+### 4. Username/hostname — confirmed already handled, added visible banners
+- User noted hostname/username will only be decided at Arch install time,
+  asked whether scripts check the current username dynamically.
+- Audited the whole repo (`grep` for hardcoded `/home/<user>` paths, a
+  literal hostname, and confirmed every user-scoped write goes through
+  `$USER`/`$HOME`/`whoami`). Result: **already fully dynamic, no changes
+  needed to the logic** — this fell out of the `861` MPD rewrite already
+  (systemd `--user` service inherently runs as whoever invokes it, so the
+  old artix-nemesis `command_user="zythros:audio"` patch + `chown
+  zythros:audio /var/lib/mpd` + `chmod 711 /home/zythros` hardcoding
+  couldn't survive the port even before this was asked about). `840`'s
+  `ALLOW_USERS` already used `$(whoami)`, not a literal name.
+- Bootloader (GRUB vs. systemd-boot in `880`/`881`/`890`) and BTRFS
+  detection (`840`) were also already runtime-detected (`findmnt`,
+  `/boot/loader/loader.conf` vs. `/etc/default/grub` existence checks) —
+  nothing install-time-specific hardcoded there either.
+- Added visible "Running as: $USER (home: $HOME)" banners to `803` and
+  `861`, and an explicit "Detected current user: $CURRENT_USER" echo in
+  `840`, purely so this is confirmable at a glance during a live run
+  instead of only being correct silently.
+
 ## Environment notes
 
 - This session's own sandbox (where `git init`/`commit`/`push` actually ran

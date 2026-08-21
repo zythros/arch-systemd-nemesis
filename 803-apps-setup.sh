@@ -77,6 +77,9 @@ echo "################### Installing base apps"
 echo "########################################################################"
 tput sgr0
 echo
+echo "Running as: $USER (home: $HOME) — per-user config (fish, xfce-polkit"
+echo "autostart, alacritty, etc.) is written relative to these, not hardcoded."
+echo
 
 ##################################################################################################################################
 # Authenticate sudo once up front; keepalive prevents expiry during long installs

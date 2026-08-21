@@ -40,6 +40,9 @@ echo "################### Setting up MPD + rmpc"
 echo "########################################################################"
 tput sgr0
 echo
+echo "Running as: $USER (home: $HOME) — mpd.service will run as this user via"
+echo "'systemctl --user', with config/data under \$HOME. No hardcoded username."
+echo
 
 ##################################################################################################################################
 # 1. MPD + rmpc

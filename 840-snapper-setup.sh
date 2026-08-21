@@ -163,8 +163,11 @@ if [ -f "$SNAPPER_CONFIG" ]; then
     echo "Configuring snapper settings..."
     tput sgr0
 
-    # Allow user to use snapper (add to ALLOW_USERS)
+    # Allow user to use snapper (add to ALLOW_USERS) — detected at runtime,
+    # not hardcoded, so this is correct regardless of what username the
+    # Arch install ended up with.
     CURRENT_USER=$(whoami)
+    echo "Detected current user: $CURRENT_USER"
     if ! sudo grep -q "ALLOW_USERS=\".*$CURRENT_USER" "$SNAPPER_CONFIG"; then
         sudo sed -i "s/ALLOW_USERS=\"\"/ALLOW_USERS=\"$CURRENT_USER\"/" "$SNAPPER_CONFIG"
         tput setaf 2
