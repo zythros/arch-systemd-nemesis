@@ -24,6 +24,15 @@ source "$(dirname "$(readlink -f "$0")")/lib.sh"
 #     no custom wrapper needed.
 #   - podman needs no shared-root fixup: systemd-remount-fs.service already
 #     marks / as a shared mount at boot, unconditionally, on every systemd box.
+#   - ttf-jetbrains-mono-nerd + noto-fonts-emoji added to fix "tofu" (missing
+#     glyph) boxes seen live on this install: one in the dwm/slstatus status
+#     bar (a Nerd Font icon glyph baked into the zythros/slstatus config.h),
+#     one in distrobox's container-indicator prompt icon (needs an emoji
+#     font). Neither font was present before — artix-nemesis's own history
+#     added then reverted JetBrainsMono Nerd Font, but only because it was
+#     bundled with starship, which the user didn't want; the font itself was
+#     never the problem. Re-added standalone here, plus the emoji font,
+#     which wasn't part of that original bundle at all.
 ##################################################################################################################################
 #
 #   DO NOT JUST RUN THIS. EXAMINE AND JUDGE. RUN AT YOUR OWN RISK.
@@ -52,6 +61,9 @@ APPS=(
     nm-connection-editor # standalone GUI for NetworkManager (no systray needed)
     podman               # rootless container engine
     distrobox            # run other distros' containers as if native (needs podman above)
+    ttf-jetbrains-mono-nerd # Nerd Font icons (status bar glyphs, prompt icons); set as the
+                            # fontconfig default for the generic "monospace" family below
+    noto-fonts-emoji      # emoji glyphs (e.g. distrobox's container-indicator prompt icon)
     # sublime-text-4      # text editor — AUR/chaotic-aur only, disabled by default (run 801 + uncomment to opt in)
     python-yaml          # dep: blood-pressure-tracker
     python-matplotlib    # dep: blood-pressure-tracker
@@ -189,6 +201,43 @@ XPROFILE_ENTRY
             echo "  → enabling NetworkManager.service ..."
             tput sgr0
             sudo systemctl enable --now NetworkManager.service
+            ;;
+        ttf-jetbrains-mono-nerd)
+            # Set as the fontconfig-level default for the generic "monospace"
+            # family so every app that asks for "monospace" (alacritty's
+            # config.h, dwm's status bar via slstatus, etc.) gets the Nerd
+            # Font's icon glyphs instead of falling back to tofu boxes for
+            # codepoints the base monospace font doesn't cover.
+            FONTCONF="/etc/fonts/local.conf"
+            if grep -qF 'JetBrainsMono Nerd Font' "$FONTCONF" 2>/dev/null; then
+                echo "  → $FONTCONF already prefers JetBrainsMono Nerd Font — skipping."
+            else
+                sudo tee "$FONTCONF" > /dev/null <<'FONTCONF_EOF'
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+  <alias>
+    <family>monospace</family>
+    <prefer>
+      <family>JetBrainsMono Nerd Font</family>
+    </prefer>
+  </alias>
+</fontconfig>
+FONTCONF_EOF
+                tput setaf 6
+                echo "  → wrote $FONTCONF (monospace → JetBrainsMono Nerd Font)"
+                tput sgr0
+            fi
+            sudo fc-cache -f &>/dev/null
+            MATCHED=$(fc-match monospace 2>/dev/null)
+            if echo "$MATCHED" | grep -qi 'jetbrainsmono nerd'; then
+                tput setaf 2; echo "  → verified: fc-match monospace → $MATCHED"; tput sgr0
+            else
+                tput setaf 3
+                echo "  → WARNING: fc-match monospace returned '$MATCHED', not JetBrainsMono Nerd Font."
+                echo "    Check manually: fc-match monospace"
+                tput sgr0
+            fi
             ;;
     esac
 }

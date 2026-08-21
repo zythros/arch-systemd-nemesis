@@ -223,15 +223,50 @@ the username/hostname pass in item 5. Three real findings, all fixed:
 - `bash -n` and `shellcheck -S style` both exit 0 across all 20 scripts.
   Committed (`d512a6a`), pushed.
 
+### 8. First live evidence from the actual machine: missing-glyph ("tofu") boxes
+- User sent two photos from the real target machine via `/remote-control`
+  (first live look at this install, not just desk-reasoned): a box-with-`?`
+  glyph showing in the dwm/slstatus status bar right before the datetime,
+  and the same glyph in fish's prompt specifically *inside a distrobox
+  container* (`[arch@bullbox arch]>`).
+- Diagnosed as two independent missing-font ("tofu") gaps sharing the same
+  symptom, not a script bug: (1) the status bar icon is a Nerd Font
+  private-use-area glyph baked into `zythros/slstatus`'s own `config.h`
+  (that repo, not this one); (2) the distrobox prompt icon is distrobox's
+  own container-indicator emoji, needing an emoji font. Neither font was
+  present — traced back to artix-nemesis's own history (§5 there):
+  JetBrainsMono Nerd Font was added *and reverted*, but bundled together
+  with starship, which the user disliked — the font itself was never
+  actually the problem, it just went down with starship.
+- User confirmed: add both fonts to `803-apps-setup.sh`. Added
+  `ttf-jetbrains-mono-nerd` (verified against archlinux.org's package JSON
+  before committing to the name) with a `post_install` case that sets it as
+  the fontconfig default for the generic `monospace` family (same
+  `fc-match`-verified approach artix-nemesis's reverted attempt used) —
+  since alacritty's config and presumably slstatus/dwm both reference
+  `"monospace"` rather than a hardcoded font name, this should cover both
+  icon sources through one fontconfig alias rather than per-app config.
+  Added `noto-fonts-emoji` alongside it (package also verified to exist) —
+  no fixup needed, fontconfig's automatic glyph-coverage fallback picks it
+  up once installed.
+- `bash -n` + `shellcheck -S style` clean on the edited file. Committed,
+  pushed.
+
 ## Open / deferred items
 
-- **Nothing in this repo has been run against real hardware yet.** Unlike
-  artix-nemesis's `NOTES.md` (which documents fixes confirmed live on
-  `artix-pc`), everything here is a desk port — reasoned through carefully,
-  syntax-checked, but not empirically verified. Treat first-run output on
-  the actual Arch/SDDM machine as the real test, especially:
+- **First live evidence arrived in item 8 above** — the target machine is
+  confirmed up and running dwm + slstatus + distrobox + fish already (at
+  least some of `802`/`830`/etc. have been run for real), so this is no
+  longer a purely desk-reasoned port. Still, most of it hasn't been
+  explicitly confirmed working, and the new font fix (item 8) itself
+  hasn't been run live yet either — treat live output as the real test for:
+  - The `ttf-jetbrains-mono-nerd` fontconfig fix actually clearing both
+    tofu-box sightings after a re-run of `803` + a fresh shell/bar restart
+    (fc-match was only verified in the abstract, not against the actual
+    slstatus/distrobox glyphs in question).
   - SDDM's native `~/.xprofile` sourcing (wallpaper/slstatus/spice-vdagent
-    autostart all depend on it).
+    autostart all depend on it) — implicitly confirmed now that slstatus is
+    visibly running, but not explicitly re-checked against the note in §3.
   - `xfce-polkit` actually showing a GUI prompt for gparted's
     `gparted-pkexec` desktop entry (depends on the package still shipping
     that policykit-integrated `.desktop` on current Arch).
