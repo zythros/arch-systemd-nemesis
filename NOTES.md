@@ -184,6 +184,45 @@ the username/hostname pass in item 5. Three real findings, all fixed:
   rather than silent hardcoding.
 - `bash -n` syntax-checked all touched files, committed, pushed.
 
+### 7. shellcheck pass (user request: "run shellcheck on all the scripts")
+- shellcheck wasn't installed in this session's sandbox and there was no
+  sudo access to install it system-wide; fetched the official static
+  binary (v0.11.0) from GitHub releases into the scratchpad instead of
+  skipping the request.
+- Ran at `-S style` (strictest) against all 20 scripts: 60 findings across
+  9 rule categories initially. Fixed everything real:
+  - `$(basename $0)` unquoted (SC2086) in every script's banners — 34
+    instances, cosmetic in practice but cheap to fix.
+  - `trap "kill $SUDO_KEEPALIVE ..." EXIT` double-quoted (SC2064) in 5
+    scripts — switched to single-quoted (defensive form; functionally
+    identical here since the PID is fixed at trap-set time).
+  - Three `A && { ... } || { ... }` patterns (SC2015) in 835/837/861,
+    where a failure inside the success-block would also trigger the
+    failure-block — converted to proper `if`/`then`/`else`.
+  - Two indirect `$?` checks (SC2181) in 820/840 — checked directly
+    (820's needed restructuring around a heredoc: `if ! python3 - ... <<
+    'EOF' ... EOF; then` works fine in bash, `then` just goes on its own
+    line after the heredoc terminator).
+  - `840`'s `SNAPPER_PACKAGES` was a bare space-separated string expanded
+    unquoted (SC2086, the one real non-basename instance) — converted to
+    an array, matching how the rest of the repo already handles package
+    lists (`803`'s `APPS`, `895`'s `PACKAGES`).
+  - `kernel-rollback.sh`: two unquoted expansions inside `${VAR#pattern}`
+    (SC2295) — quoted so `KERNEL_PKG` can't be misinterpreted as a glob.
+  - Two `ls ... | while read` / `ls ... | head` patterns (SC2012/SC2162)
+    in 835/895 — replaced with glob-based `for` loops.
+- Left 9 findings (7× SC2088 tilde-in-quotes, 2× SC2016 vars-in-single-
+  quotes) as confirmed false positives, not fixed: in `810`/`830` these
+  flag `~`/`$HOME` inside strings that are *deliberately* written literally
+  into `~/.xprofile`, meant to expand when SDDM sources that file at next
+  login — not something this setup script itself should expand now.
+  Suppressed with a documented file-level `# shellcheck disable=` comment
+  in each (placed before the first real command, so it's file-scoped) so
+  they don't come back as noise on a future run, rather than leaving them
+  as unexplained warnings.
+- `bash -n` and `shellcheck -S style` both exit 0 across all 20 scripts.
+  Committed (`d512a6a`), pushed.
+
 ## Open / deferred items
 
 - **Nothing in this repo has been run against real hardware yet.** Unlike
@@ -214,6 +253,12 @@ the username/hostname pass in item 5. Three real findings, all fixed:
   just can't be known ahead of time). These are edited-by-hand top-of-file
   config values or already-dynamic detections, not silent assumptions —
   just flagging that a reformat can change them even on identical hardware.
+- shellcheck isn't wired into CI or a pre-commit hook — it was run manually
+  this session against a point-in-time snapshot. Future edits to any
+  script won't be automatically re-checked; worth a GitHub Actions
+  workflow (`koalaman/shellcheck-precommit` or just installing the distro
+  package and running it in CI) if this repo keeps getting edited, rather
+  than relying on remembering to re-run it by hand.
 
 ## Environment notes
 
