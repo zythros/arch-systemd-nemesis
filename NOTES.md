@@ -379,6 +379,10 @@ the username/hostname pass in item 5. Three real findings, all fixed:
 - `bash -n` + `shellcheck -S style` clean. Committed, pushed. **Not yet
   run live** — this is desk-reasoned like the rest of a fresh addition
   until confirmed on the actual machine.
+- **Confirmed working live**: user pulled, re-ran `803`, and confirmed dark
+  mode applied on both a GTK app and a Qt app — meaning the
+  `QT_QPA_PLATFORMTHEME=qt5ct` `~/.xprofile` export also survived a fresh
+  login as expected. Full item 11 fix verified end-to-end.
 
 ## Open / deferred items
 
@@ -391,10 +395,9 @@ the username/hostname pass in item 5. Three real findings, all fixed:
   confirmed:
   - SDDM's native `~/.xprofile` sourcing (wallpaper/slstatus/spice-vdagent
     autostart all depend on it) — implicitly confirmed now that slstatus is
-    visibly running, but not explicitly re-checked against the note in §3.
-  - Item 11's dark theme defaults — none of it run live yet. GTK apps
-    should need no more than relaunching; Qt apps need a fresh login for
-    the `QT_QPA_PLATFORMTHEME` export to take effect.
+    visibly running, and further confirmed by item 11's Qt env var actually
+    surviving a fresh login (that only works because SDDM sources
+    `~/.xprofile`), so this is effectively confirmed now too.
   - NetworkManager starting cleanly (the whole reason it's used here
     instead of ConnMan is the assumption that systemd-tmpfiles fixes the
     `/run/NetworkManager` gap — should be true, wasn't re-derived from a
