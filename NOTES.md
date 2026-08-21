@@ -119,11 +119,18 @@ here); summary:
 - `snapper-rollback` and `spnavcfg` are still AUR-only on Arch too — same
   "don't silently reach for AUR" policy as artix-nemesis carries over
   unchanged (opt-in via `801-chaotic-aur-setup.sh` + manual install only).
-- No target-machine specifics (hostname, disk layout, GPU model overrides
-  in `880`/`890`, printer IP in `836`) have been confirmed against the
-  actual Arch box — all numeric/hardware-specific values were carried over
-  unmodified from artix-nemesis on the assumption it's the same or
-  similar hardware. **Not yet confirmed with the user.**
+- Target machine confirmed to be the **same physical hardware as
+  artix-nemesis's `artix-pc`, reformatted** (see Environment notes) — so
+  the fixed hardware IDs carried over unmodified (`880`'s `DISPLAY_GPU_MODEL
+  ="GA106"`, `890`'s GA102 passthrough GPU detection, `836`'s
+  `PRINTER_IP="10.0.100.103"`) should still be correct, since they describe
+  physical devices/LAN endpoints that don't change on a reformat.
+  **Still worth re-confirming, not hardware IDs**: anything reformat-
+  sensitive — `895`'s `VM_DISK_DIR="/mnt/vmssd"` mount point, `840`'s BTRFS
+  subvolume/`.snapshots` layout assumptions, GRUB vs. systemd-boot choice
+  (both `880`/`881`/`890` branch on this) — since a reformat can easily
+  change partitioning, mount points, or bootloader even on identical
+  hardware.
 
 ## Environment notes
 
@@ -132,5 +139,7 @@ here); summary:
   for artix-nemesis work, not the actual target machine either way.
 - `gh` auth: authenticated as GitHub user `zythros`.
 - Target machine for this repo: an Arch Linux + systemd + dwm + SDDM
-  install — relationship to artix-nemesis's `artix-pc` (same physical
-  machine reformatted, or a separate machine) not yet stated by the user.
+  install on the **same physical machine as artix-nemesis's `artix-pc`,
+  reformatted** (confirmed by the user) — not a separate box. Hostname/user
+  (`artix-pc`/`artix` on the old install) not yet confirmed for the Arch
+  reformat; don't assume they carried over.
