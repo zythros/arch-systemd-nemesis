@@ -30,7 +30,7 @@ POOL_NAME="vmssd"
 if [ "$DEBUG" = true ]; then
     echo
     echo "------------------------------------------------------------"
-    echo "Running $(basename $0)"
+    echo "Running $(basename "$0")"
     echo "------------------------------------------------------------"
     echo
     read -n 1 -s -r -p "Debug mode is on. Press any key to continue..."
@@ -239,8 +239,8 @@ else
 
     echo
     echo "Disk images found in $VM_DISK_DIR:"
-    ls "$VM_DISK_DIR"/*.qcow2 2>/dev/null | while read f; do
-        echo "  $(basename "$f")"
+    for f in "$VM_DISK_DIR"/*.qcow2; do
+        [ -e "$f" ] && echo "  $(basename "$f")"
     done
 fi
 
@@ -298,7 +298,7 @@ fi
 echo
 tput setaf 6
 echo "##############################################################"
-echo "###################  $(basename $0) done"
+echo "###################  $(basename "$0") done"
 echo "##############################################################"
 echo
 echo "Installed:"

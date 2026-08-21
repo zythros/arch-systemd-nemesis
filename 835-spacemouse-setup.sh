@@ -19,7 +19,7 @@ source "$(dirname "$(readlink -f "$0")")/lib.sh"
 if [ "$DEBUG" = true ]; then
     echo
     echo "------------------------------------------------------------"
-    echo "Running $(basename $0)"
+    echo "Running $(basename "$0")"
     echo "------------------------------------------------------------"
     echo
     read -n 1 -s -r -p "Debug mode is on. Press any key to continue..."
@@ -43,7 +43,7 @@ while true; do timeout 30 sudo -v; sleep 50; done &
 SUDO_KEEPALIVE=$!
 
 BUILD_DIR="$(mktemp -d)"
-trap "rm -rf '$BUILD_DIR'; kill $SUDO_KEEPALIVE 2>/dev/null" EXIT
+trap 'rm -rf "$BUILD_DIR"; kill $SUDO_KEEPALIVE 2>/dev/null' EXIT
 
 ##################################################################################################################################
 # Step 1: Build and runtime dependencies
@@ -136,7 +136,10 @@ echo "  Cloning and building spacenavd (this will take a moment) ..."
     tput setaf 1; echo "ERROR: makepkg failed — check output above" >&2; tput sgr0; exit 1
 }
 
-PKG="$(ls "$BUILD_DIR"/spacenavd-*.pkg.tar.zst 2>/dev/null | head -1)"
+PKG=""
+for p in "$BUILD_DIR"/spacenavd-*.pkg.tar.zst; do
+    [ -e "$p" ] && { PKG="$p"; break; }
+done
 [ -z "$PKG" ] && { tput setaf 1; echo "ERROR: built package not found in $BUILD_DIR" >&2; tput sgr0; exit 1; }
 
 echo "  Installing $(basename "$PKG") ..."
@@ -201,9 +204,11 @@ tput setaf 3
 echo "── Enabling and starting spacenavd ───────────────────────────────────────"
 tput sgr0
 
-sudo systemctl enable --now spacenavd.service && { tput setaf 2; echo "  spacenavd started."; tput sgr0; } || {
+if sudo systemctl enable --now spacenavd.service; then
+    tput setaf 2; echo "  spacenavd started."; tput sgr0
+else
     tput setaf 1; echo "ERROR: spacenavd failed to start" >&2; tput sgr0; exit 1
-}
+fi
 
 ##################################################################################################################################
 # Verify
@@ -226,7 +231,7 @@ fi
 echo
 tput setaf 6
 echo "##############################################################"
-echo "###################  $(basename $0) done"
+echo "###################  $(basename "$0") done"
 echo "##############################################################"
 echo
 tput setaf 2

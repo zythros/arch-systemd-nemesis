@@ -66,7 +66,7 @@ declare -A LINE_TO_PATH
 
 for path in "${PKG_PATHS[@]}"; do
     base=$(basename "$path" .pkg.tar.zst)   # linux-6.11.3.arch1-1-x86_64
-    ver="${base#${KERNEL_PKG}-}"             # 6.11.3.arch1-1-x86_64
+    ver="${base#"${KERNEL_PKG}"-}"             # 6.11.3.arch1-1-x86_64
     ver="${ver%-x86_64}"                     # 6.11.3.arch1-1
 
     headers="$CACHE/${KERNEL_PKG}-headers-${ver}-x86_64.pkg.tar.zst"
@@ -97,7 +97,7 @@ SELECTED=$(printf '%s\n' "${DISPLAY_LINES[@]}" | fzf \
 
 TARGET_PATH="${LINE_TO_PATH[$SELECTED]}"
 TARGET_BASE=$(basename "$TARGET_PATH" .pkg.tar.zst)
-TARGET_VER="${TARGET_BASE#${KERNEL_PKG}-}"
+TARGET_VER="${TARGET_BASE#"${KERNEL_PKG}"-}"
 TARGET_VER="${TARGET_VER%-x86_64}"
 
 ##################################################################################################################################

@@ -18,7 +18,7 @@ source "$(dirname "$(readlink -f "$0")")/lib.sh"
 if [ "$DEBUG" = true ]; then
     echo
     echo "------------------------------------------------------------"
-    echo "Running $(basename $0)"
+    echo "Running $(basename "$0")"
     echo "------------------------------------------------------------"
     echo
     read -n 1 -s -r -p "Debug mode is on. Press any key to continue..."
@@ -172,7 +172,7 @@ echo "Patching dwm config.h ..."
 
 # Use the absolute path so dwm's execvp finds the wrapper regardless of
 # what PATH SDDM passes to the X session (fish PATH is not inherited).
-python3 - "$DWM_SRC/config.h" "$WRAPPER" <<'PYPATCH'
+if ! python3 - "$DWM_SRC/config.h" "$WRAPPER" <<'PYPATCH'
 import sys, re
 path, wrapper = sys.argv[1], sys.argv[2]
 text = open(path).read()
@@ -191,8 +191,7 @@ if new_text == text:
 open(path, 'w').write(new_text)
 print(f"dmenucmd patched → {wrapper}")
 PYPATCH
-
-if [ $? -ne 0 ]; then
+then
     tput setaf 1
     echo "ERROR: config.h patch failed"
     tput sgr0
@@ -228,7 +227,7 @@ DMENU_VERSION=$(dmenu -v 2>&1 | head -1)
 echo
 tput setaf 6
 echo "##############################################################"
-echo "###################  $(basename $0) done"
+echo "###################  $(basename "$0") done"
 echo "##############################################################"
 echo
 echo "dmenu (zythros fork) installed:"

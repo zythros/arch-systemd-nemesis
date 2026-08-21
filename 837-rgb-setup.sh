@@ -16,7 +16,7 @@ RGB_COLOR="ff8000"
 if [ "$DEBUG" = true ]; then
     echo
     echo "------------------------------------------------------------"
-    echo "Running $(basename $0)"
+    echo "Running $(basename "$0")"
     echo "------------------------------------------------------------"
     echo
     read -n 1 -s -r -p "Debug mode is on. Press any key to continue..."
@@ -38,7 +38,7 @@ echo
 sudo -v
 while true; do timeout 30 sudo -v; sleep 50; done &
 SUDO_KEEPALIVE=$!
-trap "kill $SUDO_KEEPALIVE 2>/dev/null" EXIT
+trap 'kill $SUDO_KEEPALIVE 2>/dev/null' EXIT
 
 ##################################################################################################################################
 # Step 1: Install OpenRGB
@@ -49,9 +49,11 @@ tput setaf 3
 echo "── Installing OpenRGB ───────────────────────────────────────────────────"
 tput sgr0
 
-pkg_install openrgb && { tput setaf 2; echo "  openrgb installed."; tput sgr0; } || {
+if pkg_install openrgb; then
+    tput setaf 2; echo "  openrgb installed."; tput sgr0
+else
     tput setaf 1; echo "ERROR: failed to install openrgb" >&2; tput sgr0; exit 1
-}
+fi
 
 # Reload udev rules so the openrgb USB rules (60-openrgb.rules) take effect immediately
 sudo udevadm control --reload-rules
@@ -149,7 +151,7 @@ fi
 echo
 tput setaf 6
 echo "##############################################################"
-echo "###################  $(basename $0) done"
+echo "###################  $(basename "$0") done"
 echo "##############################################################"
 echo
 tput setaf 2

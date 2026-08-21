@@ -24,7 +24,7 @@ source "$(dirname "$(readlink -f "$0")")/lib.sh"
 if [ "$DEBUG" = true ]; then
     echo
     echo "------------------------------------------------------------"
-    echo "Running $(basename $0)"
+    echo "Running $(basename "$0")"
     echo "------------------------------------------------------------"
     echo
     read -n 1 -s -r -p "Debug mode is on. Press any key to continue..."
@@ -132,9 +132,11 @@ if [ -f "$RMPC_CONF" ]; then
     echo "rmpc config already exists — skipping."
 else
     mkdir -p "$(dirname "$RMPC_CONF")"
-    rmpc config > "$RMPC_CONF" 2>/dev/null && \
-        { tput setaf 2; echo "Bootstrapped $RMPC_CONF."; tput sgr0; } || \
-        { tput setaf 1; echo "WARNING: rmpc config bootstrap failed — run 'rmpc config > $RMPC_CONF' manually." >&2; tput sgr0; }
+    if rmpc config > "$RMPC_CONF" 2>/dev/null; then
+        tput setaf 2; echo "Bootstrapped $RMPC_CONF."; tput sgr0
+    else
+        tput setaf 1; echo "WARNING: rmpc config bootstrap failed — run 'rmpc config > $RMPC_CONF' manually." >&2; tput sgr0
+    fi
 fi
 
 ##################################################################################################################################
@@ -167,7 +169,7 @@ fi
 echo
 tput setaf 6
 echo "##############################################################"
-echo "###################  $(basename $0) done"
+echo "###################  $(basename "$0") done"
 echo "##############################################################"
 echo
 echo "MPD config:    $MPD_CONF_DIR/mpd.conf  ← uncomment and set music_directory"

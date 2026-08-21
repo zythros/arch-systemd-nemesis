@@ -61,7 +61,7 @@ APPS=(
 if [ "$DEBUG" = true ]; then
     echo
     echo "------------------------------------------------------------"
-    echo "Running $(basename $0)"
+    echo "Running $(basename "$0")"
     echo "------------------------------------------------------------"
     echo
     read -n 1 -s -r -p "Debug mode is on. Press any key to continue..."
@@ -88,7 +88,7 @@ echo
 sudo -v
 while true; do timeout 30 sudo -v; sleep 50; done &
 SUDO_KEEPALIVE=$!
-trap "kill $SUDO_KEEPALIVE 2>/dev/null" EXIT
+trap 'kill $SUDO_KEEPALIVE 2>/dev/null' EXIT
 
 sudo pacman -Sy
 
@@ -321,7 +321,7 @@ fi
 echo
 tput setaf 6
 echo "##############################################################"
-echo "###################  $(basename $0) done"
+echo "###################  $(basename "$0") done"
 echo "##############################################################"
 echo
 

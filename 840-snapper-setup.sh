@@ -13,7 +13,7 @@ source "$(dirname "$(readlink -f "$0")")/lib.sh"
 if [ "$DEBUG" = true ]; then
     echo
     echo "------------------------------------------------------------"
-    echo "Running $(basename $0)"
+    echo "Running $(basename "$0")"
     echo "------------------------------------------------------------"
     echo
     read -n 1 -s -r -p "Debug mode is on. Press any key to continue..."
@@ -87,7 +87,7 @@ tput sgr0
 # Install snapper and related packages
 ##################################################################################################################################
 
-SNAPPER_PACKAGES="snapper snap-pac grub-btrfs inotify-tools"
+SNAPPER_PACKAGES=(snapper snap-pac grub-btrfs inotify-tools)
 
 tput setaf 3
 echo "Syncing package databases..."
@@ -98,7 +98,7 @@ tput setaf 3
 echo "Installing snapper packages..."
 tput sgr0
 
-if ! sudo pacman -S --noconfirm --needed $SNAPPER_PACKAGES; then
+if ! sudo pacman -S --noconfirm --needed "${SNAPPER_PACKAGES[@]}"; then
     tput setaf 1
     echo "ERROR: Failed to install snapper packages"
     echo "Check your internet connection and pacman configuration."
@@ -137,9 +137,7 @@ else
     fi
 
     # Create the snapper config
-    sudo snapper -c root create-config /
-
-    if [ $? -eq 0 ]; then
+    if sudo snapper -c root create-config /; then
         tput setaf 2
         echo "Snapper 'root' config created successfully"
         tput sgr0
@@ -308,7 +306,7 @@ fi
 echo
 tput setaf 6
 echo "##############################################################"
-echo "###################  $(basename $0) done"
+echo "###################  $(basename "$0") done"
 echo "##############################################################"
 echo
 echo "Snapper BTRFS snapshot system installed:"

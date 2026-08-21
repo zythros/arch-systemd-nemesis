@@ -1,5 +1,9 @@
 #!/bin/bash
 #set -e
+# shellcheck disable=SC2088,SC2016
+# Both apply throughout this file to text written literally into
+# ~/.xprofile: the ~ and $HOME are meant to be expanded when SDDM sources
+# ~/.xprofile at the next login, not by this setup script right now.
 source "$(dirname "$(readlink -f "$0")")/lib.sh"
 ##################################################################################################################################
 # Author    : zythros
@@ -18,7 +22,7 @@ source "$(dirname "$(readlink -f "$0")")/lib.sh"
 if [ "$DEBUG" = true ]; then
     echo
     echo "------------------------------------------------------------"
-    echo "Running $(basename $0)"
+    echo "Running $(basename "$0")"
     echo "------------------------------------------------------------"
     echo
     read -n 1 -s -r -p "Debug mode is on. Press any key to continue..."
@@ -227,7 +231,7 @@ WALLPAPER_COUNT=$(find "$WALLPAPER_DIR" -maxdepth 1 -type f \( -iname "*.jpg" -o
 echo
 tput setaf 6
 echo "##############################################################"
-echo "###################  $(basename $0) done"
+echo "###################  $(basename "$0") done"
 echo "##############################################################"
 echo
 echo "Wallpaper system installed:"
