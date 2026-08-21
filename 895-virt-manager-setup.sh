@@ -312,12 +312,28 @@ echo "  - Default NAT network (virbr0, 192.168.122.0/24) active + autostart"
 echo "  - Storage pool '$POOL_NAME' -> $VM_DISK_DIR (active + autostart)"
 echo "  - virt-manager default firmware: UEFI (gsettings)"
 echo
+# RTX 3090's PCI address and IOMMU group are re-detected here rather than
+# printed as a fixed fact — both can shift after a reformat (BIOS updates,
+# ACS override changes) even on identical physical hardware, so a stale
+# hardcoded "3f:00.0 / group 36" from a previous install would be actively
+# misleading rather than just imprecise.
+GPU_ADDR_NOW=$(lspci | grep "GA102" | grep -i "VGA" | awk '{print $1}')
+IOMMU_GROUP_NOW=""
+if [ -n "$GPU_ADDR_NOW" ] && [ -d "/sys/bus/pci/devices/0000:${GPU_ADDR_NOW}/iommu_group" ]; then
+    IOMMU_GROUP_NOW=$(basename "$(readlink -f "/sys/bus/pci/devices/0000:${GPU_ADDR_NOW}/iommu_group")")
+fi
+
 echo "Next steps:"
 echo "  1. Log out and back in (or run 'newgrp libvirt') for group membership to take effect"
 echo "  2. Open virt-manager and create a new VM"
 echo "  3. Under 'Storage', select pool '$POOL_NAME' to use existing qcow2 files"
-echo "  4. To attach RTX 3090 (already vfio-bound):"
+echo "  4. To attach RTX 3090 (already vfio-bound, see 890-vfio-passthrough.sh):"
 echo "       VM Details -> Add Hardware -> PCI Host Device"
-echo "       Select: RTX 3090 (IOMMU group 36: 3f:00.0 + 3f:00.1)"
+if [ -n "$GPU_ADDR_NOW" ]; then
+    echo "       Select: RTX 3090 at $GPU_ADDR_NOW${IOMMU_GROUP_NOW:+ (IOMMU group $IOMMU_GROUP_NOW)}"
+else
+    echo "       Could not re-detect the RTX 3090 just now — find it with:"
+    echo "         lspci -nnk | grep -A3 NVIDIA"
+fi
 echo
 tput sgr0

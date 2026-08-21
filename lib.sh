@@ -26,3 +26,26 @@ pkg_install() {
     sudo rm -f /var/lib/pacman/db.lck
     sudo pacman -S --noconfirm --needed "$pkg"
 }
+
+##################################################################################################################################
+# detect_kernel_pkg
+#
+# Echoes the installed base kernel package name (linux, linux-lts,
+# linux-zen, linux-hardened, ...), falling back to "linux" with a warning
+# if none of the known ones are installed. Which kernel this install uses
+# is itself an install-time decision — DON'T assume "linux-headers" is the
+# right headers package (scripts that build DKMS modules need the headers
+# package matching whatever kernel actually booted, e.g. linux-zen needs
+# linux-zen-headers, not linux-headers).
+##################################################################################################################################
+
+detect_kernel_pkg() {
+    local k
+    for k in linux linux-lts linux-zen linux-hardened; do
+        pacman -Q "$k" &>/dev/null && { echo "$k"; return 0; }
+    done
+    echo "WARNING: no known kernel package (linux/linux-lts/linux-zen/linux-hardened)" >&2
+    echo "         found installed — falling back to 'linux'. If this is wrong," >&2
+    echo "         the headers package installed below won't match the running kernel." >&2
+    echo "linux"
+}

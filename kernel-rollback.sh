@@ -3,8 +3,11 @@
 ##################################################################################################################################
 # Author    : zythros
 # Purpose   : Roll back the kernel to any version available in the pacman cache.
-#             Lists linux + linux-headers pairs, lets you pick one with fzf,
+#             Lists kernel + headers pairs, lets you pick one with fzf,
 #             then installs with pacman -U and rebuilds DKMS modules.
+#             Detects the installed kernel flavor (linux/-lts/-zen/-hardened)
+#             rather than assuming plain "linux" — which kernel this install
+#             uses is an install-time decision, not something to hardcode.
 ##################################################################################################################################
 #
 #   DO NOT JUST RUN THIS. EXAMINE AND JUDGE. RUN AT YOUR OWN RISK.
@@ -14,6 +17,17 @@
 CACHE=/var/cache/pacman/pkg
 RUNNING=$(uname -r)
 
+# Detect the installed kernel flavor rather than assuming "linux" — same
+# helper logic as lib.sh's detect_kernel_pkg, inlined here since this
+# script is deliberately standalone (not wired into menu-fzf.sh).
+KERNEL_PKG="linux"
+for k in linux linux-lts linux-zen linux-hardened; do
+    if pacman -Q "$k" &>/dev/null; then
+        KERNEL_PKG="$k"
+        break
+    fi
+done
+
 echo
 tput setaf 2
 echo "########################################################################"
@@ -22,6 +36,7 @@ echo "########################################################################"
 tput sgr0
 echo
 echo "Running kernel : $RUNNING"
+echo "Kernel package : $KERNEL_PKG"
 echo "Cache          : $CACHE"
 echo
 
@@ -35,11 +50,11 @@ fi
 ##################################################################################################################################
 
 mapfile -t PKG_PATHS < <(
-    find "$CACHE" -maxdepth 1 -name 'linux-[0-9]*.pkg.tar.zst' | sort -rV
+    find "$CACHE" -maxdepth 1 -name "${KERNEL_PKG}-[0-9]*.pkg.tar.zst" | sort -rV
 )
 
 if [ ${#PKG_PATHS[@]} -eq 0 ]; then
-    echo "No kernel packages found in $CACHE" >&2
+    echo "No $KERNEL_PKG packages found in $CACHE" >&2
     exit 1
 fi
 
@@ -51,10 +66,10 @@ declare -A LINE_TO_PATH
 
 for path in "${PKG_PATHS[@]}"; do
     base=$(basename "$path" .pkg.tar.zst)   # linux-6.11.3.arch1-1-x86_64
-    ver="${base#linux-}"                     # 6.11.3.arch1-1-x86_64
+    ver="${base#${KERNEL_PKG}-}"             # 6.11.3.arch1-1-x86_64
     ver="${ver%-x86_64}"                     # 6.11.3.arch1-1
 
-    headers="$CACHE/linux-headers-${ver}-x86_64.pkg.tar.zst"
+    headers="$CACHE/${KERNEL_PKG}-headers-${ver}-x86_64.pkg.tar.zst"
     has_headers="no "
     [ -f "$headers" ] && has_headers="yes"
 
@@ -82,7 +97,7 @@ SELECTED=$(printf '%s\n' "${DISPLAY_LINES[@]}" | fzf \
 
 TARGET_PATH="${LINE_TO_PATH[$SELECTED]}"
 TARGET_BASE=$(basename "$TARGET_PATH" .pkg.tar.zst)
-TARGET_VER="${TARGET_BASE#linux-}"
+TARGET_VER="${TARGET_BASE#${KERNEL_PKG}-}"
 TARGET_VER="${TARGET_VER%-x86_64}"
 
 ##################################################################################################################################
@@ -93,7 +108,7 @@ echo
 echo "Selected: $TARGET_VER"
 
 PKGS=("$TARGET_PATH")
-HEADERS_PATH="$CACHE/linux-headers-${TARGET_VER}-x86_64.pkg.tar.zst"
+HEADERS_PATH="$CACHE/${KERNEL_PKG}-headers-${TARGET_VER}-x86_64.pkg.tar.zst"
 if [ -f "$HEADERS_PATH" ]; then
     PKGS+=("$HEADERS_PATH")
 fi
@@ -117,11 +132,25 @@ sudo pacman -U "${PKGS[@]}"
 
 ##################################################################################################################################
 # Rebuild DKMS modules for the target kernel
-# Package version uses dots (6.11.3.arch1-1); modules dir uses a hyphen (6.11.3-arch1-1).
 ##################################################################################################################################
 
-# Convert pkg ver → kernel ver: 6.11.3.arch1-1 → 6.11.3-arch1-1
-KVER=$(echo "$TARGET_VER" | sed 's/\.\(arch[^.]*-[0-9]*\)$/-\1/')
+# Package version (dots, e.g. 6.11.3.arch1-1) doesn't always translate to the
+# modules-dir name (hyphens, e.g. 6.11.3-arch1-1) by a single fixed regex —
+# the exact version-tag convention differs per kernel flavor (linux uses
+# .archN, linux-zen uses .zenN, linux-lts often has no such tag at all). Read
+# the real module directory name straight out of the package archive instead
+# of guessing a flavor-specific pattern — this is the exact string DKMS/
+# `uname -r` need, and it's correct for any kernel flavor uniformly.
+KVER=$(bsdtar -tf "$TARGET_PATH" 2>/dev/null | grep -oP 'usr/lib/modules/\K[^/]+' | head -1)
+if [ -z "$KVER" ]; then
+    tput setaf 3
+    echo "WARNING: could not read the module directory name out of the package" >&2
+    echo "         archive — falling back to the raw version string. Verify with" >&2
+    echo "         'ls /usr/lib/modules/' after reboot if the DKMS rebuild below" >&2
+    echo "         looks wrong." >&2
+    tput sgr0
+    KVER="$TARGET_VER"
+fi
 
 if command -v dkms &>/dev/null; then
     echo

@@ -58,6 +58,23 @@ sudo udevadm control --reload-rules
 sudo udevadm trigger
 
 ##################################################################################################################################
+# Step 1b: List detected devices — device *indices* below (--device 2) are
+# assigned by OpenRGB's enumeration order, not a stable hardware ID. That
+# order depends on USB/I2C enumeration timing and isn't guaranteed to match
+# what a previous install saw, even on identical physical hardware. Printed
+# here so it's visible in this run's output — confirm device 2 is actually
+# the motherboard (ASUS Aura) below before trusting the boot script.
+##################################################################################################################################
+
+echo
+tput setaf 3
+echo "── Detected devices (confirm index 2 below is the motherboard!) ─────────"
+tput sgr0
+sudo modprobe i2c-dev 2>/dev/null || true
+sleep 2
+openrgb --list-devices || echo "  (--list-devices failed — devices may still be enumerating; check manually after boot)"
+
+##################################################################################################################################
 # Step 2: Write a systemd unit to apply the color at every boot
 ##################################################################################################################################
 
@@ -76,6 +93,10 @@ sleep 5
 # Zones 1-3 map to Aura Addressable 1-3 headers; fans and PSU light strip are
 # connected via the Fractal case ARGB hub. LED count intentionally overshoots --
 # single static color makes the exact count irrelevant.
+# NOTE: "--device 2" is an enumeration-order index, not a stable hardware ID —
+# it can shift on a fresh install even on identical physical hardware. Verified
+# against 'openrgb --list-devices' output at setup time (see this script's
+# Step 1b) — re-verify manually if RGB behaves unexpectedly after a reformat.
 openrgb --device 2 --zone 1 --size 100
 openrgb --device 2 --zone 2 --size 100
 openrgb --device 2 --zone 3 --size 100

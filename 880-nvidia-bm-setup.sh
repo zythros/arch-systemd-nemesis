@@ -68,12 +68,19 @@ else
     echo "NVIDIA packages already installed."
 fi
 
-# Ensure linux-headers for the running kernel are present — DKMS needs them to build modules.
-if ! pacman -Q linux-headers &>/dev/null; then
+# Ensure headers matching the *running* kernel are present — DKMS needs them
+# to build modules. Which kernel this install uses (linux/-lts/-zen/-hardened)
+# is an install-time decision, not something to assume — detect it rather
+# than hardcoding "linux-headers", which would silently install the wrong
+# headers package if this ended up on linux-zen or linux-lts.
+KERNEL_PKG="$(detect_kernel_pkg)"
+HEADERS_PKG="${KERNEL_PKG}-headers"
+echo "Detected kernel package: $KERNEL_PKG (headers: $HEADERS_PKG)"
+if ! pacman -Q "$HEADERS_PKG" &>/dev/null; then
     tput setaf 3
-    echo "linux-headers not installed — installing (required for DKMS build)..."
+    echo "$HEADERS_PKG not installed — installing (required for DKMS build)..."
     tput sgr0
-    sudo pacman -S --noconfirm linux-headers
+    sudo pacman -S --noconfirm "$HEADERS_PKG"
 fi
 
 # Verify DKMS built modules for the running kernel; attempt rebuild if missing.

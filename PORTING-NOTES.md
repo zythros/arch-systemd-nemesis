@@ -111,9 +111,42 @@ this note.
   always-running OpenRC services — arguably the more correct model for
   "run hourly" / "run on a schedule" work regardless of init system.
 
+## Correctness fixes beyond artix-nemesis (not init-system-related)
+
+Found during a later audit for install-time-decided values (username,
+hostname, kernel flavor) that artix-nemesis's originals also carried
+unnecessarily hardcoded — worth listing since these are bugs in the
+*source* logic that the port happened to inherit, not things introduced by
+the systemd port itself:
+
+- **Kernel flavor.** `880`/`881` hardcoded `linux-headers`; `kernel-
+  rollback.sh` hardcoded a `linux-[0-9]*` cache-search glob and a
+  `.archN-pkgrel`-shaped regex to derive the DKMS target version. All three
+  assumed the vanilla `linux` kernel package — wrong on `linux-lts`/
+  `-zen`/`-hardened`. Now: `lib.sh`'s `detect_kernel_pkg()` picks whichever
+  of the four known kernel packages is actually installed;
+  `kernel-rollback.sh` inlines the same check (stays standalone, doesn't
+  source `lib.sh`) and derives the DKMS version by reading the real
+  `usr/lib/modules/<KVER>` path out of the package archive instead of
+  regex-guessing a version-tag convention.
+- **OpenRGB device index (`837`).** `--device 2` is an enumeration-order
+  index, not a stable ID — not guaranteed to match a previous install even
+  on identical hardware. Added an `openrgb --list-devices` preflight dump
+  so this run's actual device order is visible, with the index treated as
+  "verify, don't trust" in the comments.
+- **Stale IOMMU group / PCI address in `895`'s closing instructions.**
+  Printed a hardcoded `IOMMU group 36: 3f:00.0 + 3f:00.1` carried over from
+  artix-nemesis's own machine state — both can shift after any reformat.
+  Now re-detected live via `lspci` + `/sys/bus/pci/devices/.../iommu_group`
+  at print time.
+
 ## Left as an open question, same as upstream
 
 - `snapper-rollback` and `spnavcfg` are still AUR-only on Arch too — the
   "don't silently reach for AUR" policy from artix-nemesis carries over
   unchanged, including the same commented-out opt-in pattern gated behind
   `801-chaotic-aur-setup.sh`.
+- `895`'s `VM_DISK_DIR` and `840`'s BTRFS/`.snapshots` layout are still
+  edited-by-hand top-of-file config, same as upstream — genuinely
+  install-time-unknown rather than something a script can detect ahead of
+  the actual disk layout existing.
