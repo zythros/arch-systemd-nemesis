@@ -332,31 +332,28 @@ the username/hostname pass in item 5. Three real findings, all fixed:
   not explicitly distinguished from `803` in what was confirmed).
 - Scope of what's confirmed vs. not, kept precise rather than assumed:
   confirmed is the packages actually installing now (`polkit-gnome`,
-  `ttf-jetbrains-mono-nerd`, `noto-fonts-emoji` all succeed). **Not yet
-  confirmed**: whether the tofu boxes are visually gone from the status
-  bar/distrobox prompt, and whether gparted's `pkexec` prompt actually
-  shows the GUI auth dialog via the new `polkit-gnome` agent — both still
-  open below.
+  `ttf-jetbrains-mono-nerd`, `noto-fonts-emoji` all succeed).
+- **Both follow-ups since confirmed working, visually, on the real
+  machine**: tofu boxes are gone from the status bar and distrobox prompt
+  (`ttf-jetbrains-mono-nerd`'s fontconfig fix works as designed); gparted
+  launched via rofi shows a proper GUI PolicyKit password dialog
+  (`polkit-gnome` agent + gparted's packaged `gparted-pkexec` `.desktop`
+  entry both confirmed working end-to-end, not just installing cleanly).
+  The gparted-via-polkit design from `PORTING-NOTES.md` (item 2 there) is
+  now fully live-verified, not just reasoned through.
 
 ## Open / deferred items
 
 - **First live evidence arrived in item 8 above** — the target machine is
   confirmed up and running dwm + slstatus + distrobox + fish already (at
   least some of `802`/`830`/etc. have been run for real), so this is no
-  longer a purely desk-reasoned port. Item 10 confirmed `803`/`895` now
-  install cleanly; treat the following as still-open, not yet visually
+  longer a purely desk-reasoned port. Item 10 confirmed `803`/`895` install
+  cleanly, and both the font fix and the gparted-via-polkit fix are now
+  confirmed visually working too (see item 10). Still open, not yet
   confirmed:
-  - The `ttf-jetbrains-mono-nerd` fontconfig fix actually clearing both
-    tofu-box sightings, visually, after a shell/bar restart (fc-match was
-    only verified in the abstract, and the package now installs cleanly,
-    but nobody's looked at the actual bar/prompt since).
   - SDDM's native `~/.xprofile` sourcing (wallpaper/slstatus/spice-vdagent
     autostart all depend on it) — implicitly confirmed now that slstatus is
     visibly running, but not explicitly re-checked against the note in §3.
-  - `polkit-gnome` (confirmed installing cleanly per item 10, not yet
-    confirmed *working*) actually showing a GUI prompt for gparted's
-    `gparted-pkexec` desktop entry (depends on the package still shipping
-    that policykit-integrated `.desktop` on current Arch).
   - NetworkManager starting cleanly (the whole reason it's used here
     instead of ConnMan is the assumption that systemd-tmpfiles fixes the
     `/run/NetworkManager` gap — should be true, wasn't re-derived from a
