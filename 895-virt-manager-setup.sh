@@ -56,7 +56,12 @@ echo
 #                 ships its own systemd units (libvirtd.service, virtlogd.service)
 # virt-manager  : GTK GUI for managing VMs
 # dnsmasq       : NAT/DHCP for the default libvirt network
-# bridge-utils  : brctl — needed for bridged networking
+# NOTE: bridge-utils intentionally omitted — deprecated/unmaintained upstream and
+#       confirmed AUR-only on current Arch (not in official repos at all). Not
+#       actually needed here anyway: libvirt creates/manages its own bridge
+#       (virbr0) via netlink directly, not the legacy brctl tooling this script
+#       never calls. Including it would abort this whole install (this is a
+#       hard pacman -S of the full array, not a per-app loop like 803's).
 # NOTE: iptables-nft intentionally omitted — conflicts with iptables (already installed)
 #       libvirt works with whichever iptables backend is present
 # edk2-ovmf     : UEFI firmware for VMs (required for Secure Boot / Windows 11); explicit name avoids provider prompt
@@ -69,7 +74,6 @@ PACKAGES=(
     libvirt
     virt-manager
     dnsmasq
-    bridge-utils
     edk2-ovmf
     swtpm
     virt-viewer

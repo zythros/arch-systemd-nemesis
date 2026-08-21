@@ -16,12 +16,15 @@ source "$(dirname "$(readlink -f "$0")")/lib.sh"
 #     was abandoned in the source repo because /run/NetworkManager, normally
 #     created by systemd-tmpfiles at boot, doesn't exist under OpenRC —
 #     that gap doesn't exist here, so it just works).
-#   - polkit + xfce-polkit instead of gparted's alacritty+sudo wrapper.
+#   - polkit + polkit-gnome instead of gparted's alacritty+sudo wrapper.
 #     dwm has no session infrastructure of its own to launch a polkit agent
-#     (unlike GNOME/KDE), so xfce-polkit (a standalone, DE-independent agent)
-#     is autostarted via ~/.xprofile. Once it's running, gparted's own
-#     packaged .desktop (Exec=gparted-pkexec) prompts for auth properly —
-#     no custom wrapper needed.
+#     (unlike GNOME/KDE), so polkit-gnome (a standalone agent binary — no
+#     GNOME desktop dependency at runtime despite the package name) is
+#     autostarted via ~/.xprofile. Once it's running, gparted's own packaged
+#     .desktop (Exec=gparted-pkexec) prompts for auth properly — no custom
+#     wrapper needed. (xfce-polkit was tried first — confirmed AUR-only on
+#     a live run, not in official Arch repos at all — swapped for
+#     polkit-gnome, which is.)
 #   - podman needs no shared-root fixup: systemd-remount-fs.service already
 #     marks / as a shared mount at boot, unconditionally, on every systemd box.
 #   - ttf-jetbrains-mono-nerd + noto-fonts-emoji added to fix "tofu" (missing
@@ -44,11 +47,14 @@ source "$(dirname "$(readlink -f "$0")")/lib.sh"
 APPS=(
     fish                 # login shell (chsh + fish_add_path ~/.local/bin auto-configured)
     polkit                # privilege escalation framework (needed by gparted, etc.)
-    xfce-polkit           # standalone polkit auth agent (autostarted via ~/.xprofile)
+    polkit-gnome          # standalone polkit auth agent (autostarted via ~/.xprofile) —
+                           # xfce-polkit was tried first, confirmed AUR-only live, not official
     gparted              # partition editor (uses its own pkexec desktop entry)
-    mullvad-browser-bin  # privacy browser
+    # mullvad-browser-bin # privacy browser — AUR-only (confirmed live: not in official Arch
+                           # repos, only AUR), disabled by default (run 801 + uncomment to opt in)
     gimp                 # image editor
-    freetube             # YouTube frontend
+    # freetube            # YouTube frontend — AUR-only (freetube/freetube-bin/freetube-git all
+                           # AUR, confirmed live), disabled by default (run 801 + uncomment to opt in)
     darktable            # RAW photo editor
     vlc                  # media player (codecs: libdvdcss libdvdread libdvdnav libbluray libaacs auto-installed)
     kdenlive             # video editor
@@ -89,7 +95,7 @@ echo "################### Installing base apps"
 echo "########################################################################"
 tput sgr0
 echo
-echo "Running as: $USER (home: $HOME) — per-user config (fish, xfce-polkit"
+echo "Running as: $USER (home: $HOME) — per-user config (fish, polkit-gnome"
 echo "autostart, alacritty, etc.) is written relative to these, not hardcoded."
 echo
 
@@ -152,22 +158,26 @@ end
 FISHCONF
             fi
             ;;
-        xfce-polkit)
+        polkit-gnome)
             # dwm has no built-in session infrastructure to launch a polkit
             # agent (unlike GNOME/KDE), so autostart one via ~/.xprofile.
             # Once running, any app's pkexec/PolicyKit prompt (gparted, etc.)
             # gets a proper GUI auth dialog instead of needing a sudo wrapper.
+            # (xfce-polkit was the original choice but is AUR-only — confirmed
+            # on a live run, not in official Arch repos. polkit-gnome is a
+            # standalone agent binary despite the package name — no GNOME
+            # desktop dependency at runtime.)
             XPROFILE="$HOME/.xprofile"
-            if grep -qF "xfce-polkit" "$XPROFILE" 2>/dev/null; then
-                echo "  → ~/.xprofile already starts xfce-polkit — skipping."
+            if grep -qF "polkit-gnome" "$XPROFILE" 2>/dev/null; then
+                echo "  → ~/.xprofile already starts polkit-gnome — skipping."
             else
                 tput setaf 6
-                echo "  → adding xfce-polkit autostart to ~/.xprofile ..."
+                echo "  → adding polkit-gnome autostart to ~/.xprofile ..."
                 tput sgr0
                 cat >> "$XPROFILE" <<'XPROFILE_ENTRY'
 
-# xfce-polkit — standalone PolicyKit auth agent (dwm has no session shell of its own)
-/usr/lib/xfce-polkit/xfce-polkit &
+# polkit-gnome — standalone PolicyKit auth agent (dwm has no session shell of its own)
+/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
 XPROFILE_ENTRY
             fi
             ;;

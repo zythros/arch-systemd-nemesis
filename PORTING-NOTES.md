@@ -88,10 +88,14 @@ this note.
   equivalent). On systemd, `logind` is native and polkit works out of the
   box — the only missing piece for a bare WM like dwm is an authentication
   *agent* to show the GUI prompt, since (unlike GNOME/KDE) dwm doesn't start
-  one itself. This repo installs `xfce-polkit` (a lightweight, DE-independent
-  agent) and autostarts it via `~/.xprofile`; gparted's own packaged
-  `.desktop` (which invokes `gparted-pkexec`) then just works, with a proper
-  scoped privilege prompt instead of a blanket `sudo`.
+  one itself. This repo installs `polkit-gnome` (a standalone agent binary —
+  no GNOME desktop dependency at runtime despite the package name) and
+  autostarts it via `~/.xprofile`; gparted's own packaged `.desktop` (which
+  invokes `gparted-pkexec`) then just works, with a proper scoped privilege
+  prompt instead of a blanket `sudo`. (`xfce-polkit` was the original
+  choice — lighter-weight in spirit — but turned out to be AUR-only,
+  confirmed on a live run; `polkit-gnome` is the equivalent that's
+  actually in Arch's official `extra` repo.)
 - **`861` MPD: a `systemd --user` service instead of a system service
   patched to run as a regular user.** artix-nemesis runs MPD as an OpenRC
   system service and patches its `command_user=` line plus `chown`s
@@ -139,6 +143,23 @@ the systemd port itself:
   artix-nemesis's own machine state — both can shift after any reformat.
   Now re-detected live via `lspci` + `/sys/bus/pci/devices/.../iommu_group`
   at print time.
+- **Three AUR-only packages in `803`'s `APPS`, surfaced by a live run**
+  (`xfce-polkit`, `mullvad-browser-bin`, `freetube`) — inherited from
+  artix-nemesis without re-verifying against Arch's actual official repos.
+  `mullvad-browser-bin`/`freetube` commented out (AUR-only on any distro,
+  no fix available); `xfce-polkit` swapped for `polkit-gnome` (official
+  `extra`, same standalone-agent role) since it's load-bearing for the
+  gparted-via-polkit fix above, not just a convenience app.
+- **`835`'s `spnav` was the wrong package name entirely**, not just
+  AUR-only — the real official-repo name is `libspnav`. The existence
+  check already tested for both names; the install command never did.
+  Fixed to install `libspnav` directly.
+- **`895`'s `bridge-utils`** — confirmed AUR-only on current Arch
+  (deprecated upstream), and unlike `803`'s per-app loop, `895` installs
+  its whole package array in one `pacman -S` where any single failure
+  aborts the entire script. Also unnecessary: the script never calls
+  `brctl`; libvirt manages its own bridge via netlink. Removed from the
+  array.
 
 ## Left as an open question, same as upstream
 

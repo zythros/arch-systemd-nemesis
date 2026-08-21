@@ -67,12 +67,14 @@ here); summary:
 - **Deliberately upgraded, not just translated**: NetworkManager replaces
   ConnMan (the `/run/NetworkManager` tmpfiles gap that killed it on OpenRC
   doesn't exist under systemd); gparted goes through `polkit` +
-  `xfce-polkit` (a standalone auth agent, autostarted via `~/.xprofile`)
+  `xfce-polkit`¹ (a standalone auth agent, autostarted via `~/.xprofile`)
   instead of a `sudo` wrapper, since systemd's native `logind` makes polkit
   actually work; MPD runs as a `systemd --user` service instead of a system
   service hand-patched to run as a normal user; spacenavd and RGB-at-boot
   got real systemd unit files instead of custom OpenRC scripts; snapper
   uses `.timer` units instead of always-running daemons.
+  ¹ *Corrected in item 9 below — `xfce-polkit` turned out to be AUR-only;
+  swapped for `polkit-gnome`, which is in official Arch repos.*
 - These three "upgraded" items are real behavioral changes, not 1:1
   translations — flagged to the user explicitly as worth a second look
   before running `803`/`861` on real hardware, since none of it has been
@@ -252,6 +254,76 @@ the username/hostname pass in item 5. Three real findings, all fixed:
 - `bash -n` + `shellcheck -S style` clean on the edited file. Committed,
   pushed.
 
+### 9. Live run of `803` surfaces three AUR-only packages that shouldn't have been there
+- User ran `803-apps-setup.sh` for real (via `menu-fzf.sh`) and sent a photo
+  of the tail output: `noto-fonts-emoji` installed fine, but the summary
+  listed 3 failures — `xfce-polkit`, `mullvad-browser-bin`, `freetube`.
+- Checked each against archlinux.org's package search API rather than
+  guessing: **all three are AUR-only**, not in any official Arch repo.
+  Confirmed via the AUR RPC API too (`xfce-polkit`, `mullvad-browser-bin`,
+  `freetube`/`freetube-bin`/`freetube-git` all exist there, none in
+  `core`/`extra`/`multilib`). This is a real gap in the original port: I'd
+  verified availability rigorously for the two font packages added in item
+  8, but never went back and re-verified the rest of the `APPS` list
+  inherited from artix-nemesis — this repo's own `pkg_install()` is
+  intentionally "official repos only, no AUR fallback," so anything AUR-only
+  in `APPS` was always going to silently fail exactly like this.
+- Two of the three (`mullvad-browser-bin`, `freetube`) are just apps —
+  **commented out**, matching the exact pattern already used for
+  `sublime-text-4` (AUR-only, disabled by default, opt in via `801` +
+  uncomment). No official-repo substitute exists for either — Mullvad
+  Browser and FreeTube are both AUR-packaged-only projects regardless of
+  distro.
+- `xfce-polkit` is different — it's **load-bearing** for the gparted-via-
+  polkit fix designed in item 2/`PORTING-NOTES.md`, not just a convenience
+  app, so commenting it out would silently break gparted's auth prompt.
+  Searched official Arch repos for a standalone polkit-agent alternative:
+  found `polkit-gnome` (in `extra`) — confirmed its actual binary path via
+  the package's file listing
+  (`/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1`) rather than
+  guessing. It's a standalone agent binary despite the package name — no
+  GNOME desktop dependency at runtime, same "lightweight agent for a
+  DE-less WM" role `xfce-polkit` was meant to fill. Swapped throughout
+  `803` (APPS entry, `post_install` case, xprofile autostart line, banner
+  text) and in `PORTING-NOTES.md`.
+- Didn't stop at the 3 the live run happened to surface — went back and
+  checked **every** literal package name referenced anywhere in the repo
+  (21 in `803`'s active `APPS`, plus everything else across `802`/`810`/
+  `820`/`830`/`835`/`836`/`840`/`861`/`870`/`880`/`881`/`895`) against
+  archlinux.org's package API, in bulk. Found two more real bugs, both
+  worse than "gracefully skipped" since neither is behind a per-app
+  try/warn like `803`'s loop:
+  - **`835`'s `spnav`** — not just AUR-only, actually just the *wrong name*.
+    The script's own existence-check already tested for both `spnav` and
+    `libspnav`, but the actual install command only ever tried `spnav` —
+    which doesn't exist under that name in Arch's repos at all. The real
+    package is `libspnav` (confirmed in `extra`), and it always installs
+    fine under its real name; this line had been silently failing (with a
+    caught, non-fatal warning) for no reason. Fixed to install `libspnav`
+    directly.
+  - **`895`'s `bridge-utils`** — confirmed AUR-only on current Arch
+    (deprecated/unmaintained upstream; Arch dropped it from official repos
+    at some point). Unlike `803`'s per-app loop, `895` installs its whole
+    `PACKAGES` array in one `pacman -S`, and treats *any* failure as fatal
+    — so this would have aborted the entire script, not just skipped one
+    app. Also confirmed the script never actually calls `brctl` anywhere
+    (libvirt manages `virbr0` itself via netlink, not legacy bridge-utils
+    tooling) — so it wasn't even needed. Removed from the array entirely.
+  - `epson-inkjet-printer-escpr2` (`836`) and `chaotic-keyring`/
+    `chaotic-mirrorlist` (`801`/`chaotic-aur-removal.sh`) also don't show up
+    in official-repo search, but both are **already correctly handled** —
+    the former already has an explicit "AUR-only, not auto-installed"
+    fallback warning in the script (matches its own comment, working as
+    designed), the latter are intentionally fetched by direct URL from
+    Chaotic AUR's own CDN, never expected to be in Arch's official repos.
+    No changes needed to either.
+- `bash -n` + `shellcheck -S style` clean across the whole repo again after
+  all of the above. Committed, pushed.
+- **Lesson**: verify every package name against the actual target
+  distro's repos before shipping, not just the ones added fresh in a given
+  session — an inherited list from a different distro (even a close
+  Arch-derivative) can't be assumed correct just because it worked there.
+
 ## Open / deferred items
 
 - **First live evidence arrived in item 8 above** — the target machine is
@@ -267,9 +339,10 @@ the username/hostname pass in item 5. Three real findings, all fixed:
   - SDDM's native `~/.xprofile` sourcing (wallpaper/slstatus/spice-vdagent
     autostart all depend on it) — implicitly confirmed now that slstatus is
     visibly running, but not explicitly re-checked against the note in §3.
-  - `xfce-polkit` actually showing a GUI prompt for gparted's
-    `gparted-pkexec` desktop entry (depends on the package still shipping
-    that policykit-integrated `.desktop` on current Arch).
+  - `polkit-gnome` (swapped in per item 9, not yet re-run live) actually
+    showing a GUI prompt for gparted's `gparted-pkexec` desktop entry
+    (depends on the package still shipping that policykit-integrated
+    `.desktop` on current Arch).
   - NetworkManager starting cleanly (the whole reason it's used here
     instead of ConnMan is the assumption that systemd-tmpfiles fixes the
     `/run/NetworkManager` gap — should be true, wasn't re-derived from a

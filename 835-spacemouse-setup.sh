@@ -67,13 +67,16 @@ for dep in "${DEPS[@]}"; do
     fi
 done
 
-# spnav (libspnav): FreeCAD's optional dep for /var/run/spnav.sock communication
-if pacman -Q spnav &>/dev/null || pacman -Q libspnav &>/dev/null; then
+# libspnav: FreeCAD's optional dep for /var/run/spnav.sock communication.
+# (The package is named "libspnav" in Arch's official repos, not "spnav" —
+# an earlier version of this check tried to install "spnav", which doesn't
+# exist under that name, so it always silently failed here.)
+if pacman -Q libspnav &>/dev/null; then
     echo "  libspnav already installed."
 else
-    echo "  Installing spnav (libspnav) ..."
-    sudo pacman -S --noconfirm --needed spnav 2>/dev/null \
-        || echo "  WARNING: could not install spnav — FreeCAD may not see the spacemouse" >&2
+    echo "  Installing libspnav ..."
+    sudo pacman -S --noconfirm --needed libspnav 2>/dev/null \
+        || echo "  WARNING: could not install libspnav — FreeCAD may not see the spacemouse" >&2
 fi
 
 ##################################################################################################################################
