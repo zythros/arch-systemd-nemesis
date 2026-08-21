@@ -36,6 +36,10 @@ source "$(dirname "$(readlink -f "$0")")/lib.sh"
 #     bundled with starship, which the user didn't want; the font itself was
 #     never the problem. Re-added standalone here, plus the emoji font,
 #     which wasn't part of that original bundle at all.
+#   - Dark theme defaults added (GTK settings.ini + gsettings, qt5ct/qt6ct
+#     pointed at a bundled dark color scheme). Not in artix-nemesis at all —
+#     dwm has no portal signaling "prefer dark" to apps on either distro, so
+#     this applies equally there if wanted, just added here first.
 ##################################################################################################################################
 #
 #   DO NOT JUST RUN THIS. EXAMINE AND JUDGE. RUN AT YOUR OWN RISK.
@@ -353,6 +357,103 @@ ALACRITTYCONF
     echo "  → wrote $ALACRITTY_CONF"
     tput sgr0
 fi
+
+##################################################################################################################################
+# Dark theme defaults (GTK + Qt)
+#
+# dwm has no desktop environment / xdg-desktop-portal telling apps "prefer
+# dark" — GTK and Qt apps each need to be told directly, through their own
+# mechanisms, or they fall back to a light default:
+#   - GTK3/GTK4 apps (gimp, darktable, gparted, nm-connection-editor, ...):
+#     ~/.config/gtk-{3,4}.0/settings.ini + the matching gsettings key.
+#   - Qt5/Qt6 apps (kdenlive, vlc's Qt UI, ...): qt5ct/qt6ct, pointed at a
+#     bundled dark color scheme (no hand-rolled palette to maintain).
+# mullvad-browser (Firefox-based) isn't covered by either — its dark mode
+# is a separate per-app toggle in about:preferences, not something a
+# system-wide GTK/Qt setting reaches.
+##################################################################################################################################
+
+echo
+tput setaf 3
+echo "── Dark theme defaults (GTK + Qt) ────────────────────────────"
+tput sgr0
+
+GTK_DARK_THEME="Adwaita-dark"   # change here to switch, e.g. to Arc-Dark if you install arc-gtk-theme
+QT_COLOR_SCHEME="darker"        # one of: airy, darker, dusk, ia_ora, sand, simple, waves (bundled with qt5ct/qt6ct)
+
+for pkg in gnome-themes-extra gsettings-desktop-schemas dconf qt5ct qt6ct; do
+    if pacman -Q "$pkg" &>/dev/null; then
+        echo "$pkg already installed — skipping."
+    else
+        echo "Installing $pkg ..."
+        pkg_install "$pkg" && echo "$pkg installed." || echo "WARNING: $pkg failed to install — dark theme fixup below may not fully apply." >&2
+    fi
+done
+
+# GTK3 + GTK4: both read ~/.config/gtk-{3,4}.0/settings.ini independently
+for ver in 3.0 4.0; do
+    GTK_CONF="$HOME/.config/gtk-$ver/settings.ini"
+    mkdir -p "$(dirname "$GTK_CONF")"
+    if grep -q 'gtk-application-prefer-dark-theme=1' "$GTK_CONF" 2>/dev/null; then
+        echo "  → gtk-$ver/settings.ini already prefers dark — skipping."
+    else
+        cat > "$GTK_CONF" <<EOF
+[Settings]
+gtk-application-prefer-dark-theme=1
+gtk-theme-name=$GTK_DARK_THEME
+EOF
+        tput setaf 6; echo "  → wrote $GTK_CONF"; tput sgr0
+    fi
+done
+
+# Some GTK apps read the theme via GSettings/dconf instead of settings.ini directly
+if command -v gsettings &>/dev/null; then
+    gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' 2>/dev/null || true
+    gsettings set org.gnome.desktop.interface gtk-theme "$GTK_DARK_THEME" 2>/dev/null || true
+    echo "  → gsettings color-scheme/gtk-theme set to dark."
+fi
+
+# Qt5/Qt6: point qt5ct/qt6ct at a bundled dark color scheme (no custom
+# palette file to hand-maintain). Both packages register their platform
+# theme plugin under the name "qt5ct" — QT_QPA_PLATFORMTHEME=qt5ct is the
+# ArchWiki-documented setting that covers Qt5 *and* Qt6 apps together.
+for qtver in qt5ct qt6ct; do
+    QT_CONF="$HOME/.config/$qtver/$qtver.conf"
+    SCHEME_PATH="/usr/share/$qtver/colors/${QT_COLOR_SCHEME}.conf"
+    mkdir -p "$(dirname "$QT_CONF")"
+    if grep -qF "$SCHEME_PATH" "$QT_CONF" 2>/dev/null; then
+        echo "  → $qtver already uses the $QT_COLOR_SCHEME color scheme — skipping."
+    else
+        cat > "$QT_CONF" <<EOF
+[Appearance]
+color_scheme_path=$SCHEME_PATH
+custom_palette=true
+style=Fusion
+EOF
+        tput setaf 6; echo "  → wrote $QT_CONF ($QT_COLOR_SCHEME scheme)"; tput sgr0
+    fi
+done
+
+XPROFILE="$HOME/.xprofile"
+if grep -qF 'QT_QPA_PLATFORMTHEME' "$XPROFILE" 2>/dev/null; then
+    echo "  → ~/.xprofile already exports QT_QPA_PLATFORMTHEME — skipping."
+else
+    cat >> "$XPROFILE" <<'XPROFILE_ENTRY'
+
+# Qt apps: use qt5ct/qt6ct for theming (covers both Qt5 and Qt6 apps —
+# see 803-apps-setup.sh's dark-theme section for why "qt5ct" is correct
+# for both)
+export QT_QPA_PLATFORMTHEME=qt5ct
+XPROFILE_ENTRY
+    tput setaf 6; echo "  → added QT_QPA_PLATFORMTHEME export to ~/.xprofile"; tput sgr0
+fi
+
+tput setaf 2
+echo "  → Dark theme defaults applied. Takes effect on next app launch for GTK;"
+echo "    Qt apps need a fresh login (xprofile re-sourced) to pick up the env var."
+echo "    mullvad-browser isn't covered — toggle dark mode manually in its"
+echo "    about:preferences (Appearance) if you use it."
+tput sgr0
 
 ##################################################################################################################################
 # Install blood-pressure-tracker (Python CLI from GitHub source)

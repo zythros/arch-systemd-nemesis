@@ -342,6 +342,44 @@ the username/hostname pass in item 5. Three real findings, all fixed:
   The gparted-via-polkit design from `PORTING-NOTES.md` (item 2 there) is
   now fully live-verified, not just reasoned through.
 
+### 11. Dark theme defaults (user request: apps launching light-themed)
+- Root cause, same shape as the tofu-box and polkit gaps: dwm has no
+  desktop environment / `xdg-desktop-portal` telling apps "prefer dark" —
+  GTK and Qt apps each need it set directly through their own mechanism or
+  they default to light.
+- Added a new section to `803` (not tied to any single package's
+  `post_install`, since it's cross-cutting — same pattern as the alacritty
+  config block right before it):
+  - **GTK3/GTK4**: `~/.config/gtk-{3,4}.0/settings.ini` with
+    `gtk-application-prefer-dark-theme=1` + `gtk-theme-name=Adwaita-dark`,
+    plus the equivalent `gsettings set org.gnome.desktop.interface
+    color-scheme/gtk-theme` for apps that read GSettings/dconf instead.
+    Chose `Adwaita-dark` (via `gnome-themes-extra`) specifically to avoid
+    any new AUR risk — no separate "look" opinion beyond dark, given the
+    ask was just "prefer dark," not a specific theme.
+  - **Qt5/Qt6**: `qt5ct`/`qt6ct`, pointed at their own bundled `darker.conf`
+    color scheme (verified both packages ship one via their file listings,
+    rather than hand-rolling a custom palette file) plus
+    `QT_QPA_PLATFORMTHEME=qt5ct` exported via `~/.xprofile` — confirmed via
+    package file listings that both `qt5ct` and `qt6ct` register their
+    platform-theme plugin under the same "qt5ct" name, which is why one
+    env var covers both Qt5 and Qt6 apps (ArchWiki-documented behavior, not
+    independently re-derived from source).
+  - `gnome-themes-extra`, `gsettings-desktop-schemas`, `dconf`, `qt5ct`,
+    `qt6ct` all verified against archlinux.org's package API before
+    committing to the names — same discipline as item 9, not repeating
+    that mistake.
+  - Explicitly **not covered**: `mullvad-browser` (Firefox-based) — its
+    dark mode is a separate per-app toggle in `about:preferences`, not
+    reachable by a system-wide GTK/Qt setting. Noted in the script's own
+    output, not silently left out.
+  - `GTK_DARK_THEME`/`QT_COLOR_SCHEME` are top-of-block variables (same
+    pattern as `RGB_COLOR` in `837`, `DISPLAY_GPU_MODEL` in `880`) so a
+    different theme/scheme is a one-line edit, not a script rewrite.
+- `bash -n` + `shellcheck -S style` clean. Committed, pushed. **Not yet
+  run live** — this is desk-reasoned like the rest of a fresh addition
+  until confirmed on the actual machine.
+
 ## Open / deferred items
 
 - **First live evidence arrived in item 8 above** — the target machine is
@@ -354,6 +392,9 @@ the username/hostname pass in item 5. Three real findings, all fixed:
   - SDDM's native `~/.xprofile` sourcing (wallpaper/slstatus/spice-vdagent
     autostart all depend on it) — implicitly confirmed now that slstatus is
     visibly running, but not explicitly re-checked against the note in §3.
+  - Item 11's dark theme defaults — none of it run live yet. GTK apps
+    should need no more than relaunching; Qt apps need a fresh login for
+    the `QT_QPA_PLATFORMTHEME` export to take effect.
   - NetworkManager starting cleanly (the whole reason it's used here
     instead of ConnMan is the assumption that systemd-tmpfiles fixes the
     `/run/NetworkManager` gap — should be true, wasn't re-derived from a
