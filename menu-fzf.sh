@@ -22,6 +22,7 @@ ENTRIES=(
     "802-dwm-setup.sh"          "Build and install dwm window manager"
     "803-apps-setup.sh"         "Install preferred apps"
     "804-picom-setup.sh"        "Install picom; constant terminal opacity 90%, text stays crisp (bare metal only)"
+    "805-starship-setup.sh"     "Install starship prompt; write powerline config (tide palette, official repo only)"
     "810-wallpaper-setup.sh"    "Set up wallpaper cycling system"
     "820-dmenu-setup.sh"        "Build dmenu; wire j4-dmenu-desktop into dwm"
     "830-slstatus-setup.sh"     "Build slstatus; write CPU/RAM/datetime to DWM bar"
