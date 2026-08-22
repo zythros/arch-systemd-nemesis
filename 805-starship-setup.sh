@@ -31,6 +31,18 @@ source "$(dirname "$(readlink -f "$0")")/lib.sh"
 #             ttf-jetbrains-mono-nerd (added for the tofu-box fix, set as the
 #             fontconfig "monospace" default), so no separate font install
 #             needed here.
+#
+#             One deliberate deviation from the byte-for-byte capture:
+#             [git_status] (dirty/staged/ahead-behind indicators) is dropped
+#             from the format. $git_branch just reads .git/HEAD — safe. But
+#             $git_status has to query git's actual status machinery on
+#             every prompt render in whatever directory you're in, which is
+#             what lets a malicious repo's .git/config run code just from
+#             cd-ing in — same bug class as CVE-2022-20001 in fish's own
+#             __fish_git_prompt, still open against starship's git_status
+#             module upstream (github.com/starship/starship/issues/3974).
+#             See the comment at [git_branch]/[git_status] in the written
+#             config for how to add it back if you've weighed that tradeoff.
 ##################################################################################################################################
 #
 #   DO NOT JUST RUN THIS. EXAMINE AND JUDGE. RUN AT YOUR OWN RISK.
@@ -114,8 +126,14 @@ MARKER="palette = \"$PALETTE\""
 
 mkdir -p "$(dirname "$STARSHIP_CONF")"
 
-if [ -f "$STARSHIP_CONF" ] && grep -qF "$MARKER" "$STARSHIP_CONF"; then
-    echo "  → $STARSHIP_CONF already set to palette \"$PALETTE\" — skipping."
+# Second condition (no literal $git_status token) forces regeneration of a
+# file written by an older version of this script, back when git_status was
+# in the format — see the git_branch/git_status comment below for why that
+# was dropped. Palette match alone isn't enough to call an old file
+# "current" since that line didn't change when git_status was removed.
+# shellcheck disable=SC2016 # deliberate: literal grep pattern, not shell expansion
+if [ -f "$STARSHIP_CONF" ] && grep -qF "$MARKER" "$STARSHIP_CONF" && ! grep -qF '$git_status' "$STARSHIP_CONF"; then
+    echo "  → $STARSHIP_CONF already up to date (palette \"$PALETTE\", no git_status) — skipping."
 else
     cat > "$STARSHIP_CONF" <<EOF
 # Starship prompt — Kiro powerline, dual palette
@@ -153,7 +171,6 @@ format = """
 \$directory\\
 [](fg:dir_bg bg:git_bg)\\
 \$git_branch\\
-\$git_status\\
 [](fg:git_bg bg:lang_bg)\\
 \$python\\
 \$nodejs\\
@@ -226,16 +243,23 @@ truncation_length = 3
 truncation_symbol = "…/"
 read_only = " "
 
-# Git branch
+# Git branch — reads .git/HEAD directly, no git command invocation, so
+# nothing here reaches repo-local config.
 [git_branch]
 symbol = ""
 style = "bg:git_bg"
 format = '[[ \$symbol \$branch ](fg:git_fg bg:git_bg)](\$style)'
 
-# Git working-tree status
-[git_status]
-style = "bg:git_bg"
-format = '[[(\$all_status\$ahead_behind )](fg:git_fg bg:git_bg)](\$style)'
+# [git_status] (dirty/staged/ahead-behind indicators) is deliberately NOT
+# configured here. Unlike \$git_branch above, it has to query git's own
+# status machinery on every prompt render in whatever directory you're in
+# — that's what lets a malicious repo's .git/config run code just from
+# cd-ing in and looking at the prompt (same bug class as CVE-2022-20001 in
+# fish's own __fish_git_prompt, still open against starship's git_status
+# module upstream: https://github.com/starship/starship/issues/3974).
+# \$git_branch alone doesn't share this exposure (plain file read), so
+# it's the only git segment in the format above. Add a [git_status] table
+# back (see starship's docs) only if you've weighed that tradeoff yourself.
 
 # ── Language / tool versions (shown only in relevant projects) ──
 [python]
@@ -315,5 +339,7 @@ tput setaf 2
 echo "Prompt active on next fish login (or run 'exec fish' now). Palette: $PALETTE."
 echo "Nerd Font glyphs need ttf-jetbrains-mono-nerd (803) as the terminal font —"
 echo "if the powerline separators/icons show as boxes, re-check 803 ran first."
+echo "git_status intentionally omitted (branch name only) — see this script's"
+echo "header comment for why."
 tput sgr0
 echo
