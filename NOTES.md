@@ -438,6 +438,31 @@ the username/hostname pass in item 5. Three real findings, all fixed:
   committed (`a6844c1`), pushed. **Not yet re-confirmed live** — the
   original bug was caught live, but this fix itself hasn't been re-run on
   the machine yet.
+- **Follow-up question surfaced a second, more fundamental issue**: user
+  asked how to make the active window more transparent *without* dimming its
+  text. Root cause: picom composites a whole window's pixels as one unit —
+  there's no way to make a picom-level opacity-rule background-only, it will
+  always dim text right along with the background. The 90%-active value was
+  never going to leave focused text fully crisp through picom alone,
+  independent of the focus-tracking bug fixed just above.
+  - Fix: split the two mechanisms. alacritty's own `[window] opacity` in
+    `alacritty.toml` (803 writes the section without this key; patched in
+    by `804` itself, since the value is `804`'s concern, not the base
+    terminal config's) only fades the background fill — glyphs are drawn at
+    full alpha regardless — so it's now what determines the *focused*
+    terminal's look, with text staying fully crisp. picom's opacity-rule is
+    pinned to `100` (no-op) for `focused`, and only dims further for
+    `!focused`, where touching text too is acceptable/expected.
+  - The unfocused picom rule uses a *relative* multiplier
+    (`OPACITY_INACTIVE / OPACITY_ACTIVE`, computed via `awk` since it needs
+    two-decimal float division) rather than `OPACITY_INACTIVE` directly, so
+    the two compound back to the original target: 90% (alacritty) × 78%
+    (picom) ≈ 70% overall when unfocused.
+  - Idempotency marker bumped again (now keys off the focused rule being
+    pinned to `100`) so a machine with either older config regenerates
+    fully on next run rather than skipping. `bash -n` +
+    `shellcheck -S style -x` clean, committed (`d7f5e35`), pushed. **Not
+    yet run live.**
 
 ## Open / deferred items
 
