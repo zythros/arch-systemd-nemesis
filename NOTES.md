@@ -560,6 +560,47 @@ the username/hostname pass in item 5. Three real findings, all fixed:
   desk-verified (byte-identical output, idempotent) but not yet confirmed
   the prompt renders correctly on real hardware/terminal.
 
+### 15. `805` follow-up: dropped `$git_status` after a security back-and-forth
+- User asked whether there were security concerns with the `805` setup.
+  Root finding, reached via web search rather than assumption: `$git_status`
+  (dirty/staged/ahead-behind indicators) has to query git's actual status
+  machinery on every prompt render in whatever directory you're in — this is
+  the same bug class as **CVE-2022-20001** in fish's own
+  `__fish_git_prompt` (a malicious repo's `.git/config` can run code just
+  from `cd`-ing in and having the prompt render, no git command typed).
+  Fish patched the specific `fsmonitor` vector in 3.4.0 (this machine runs
+  4.8.1, past that fix); the general class resurfaced against starship's
+  own `git_status` module and is **still open** upstream
+  (starship/starship#3974). `$git_branch` (the part actually visible day to
+  day) is unaffected — it just reads `.git/HEAD`, no git invocation at all.
+- Talked through why "just don't run starship" doesn't fix anything (git
+  itself is the vulnerable party; any git-aware prompt — fish's own,
+  oh-my-zsh, an IDE — hits the same class), confirmed this session never
+  actually cloned `fish-tweak-tool` (API/raw-file fetches only, so no local
+  `.git/config` was ever created to worry about), and confirmed no script in
+  this repo clones `fish-tweak-tool` either — the pre-existing `git clone`
+  calls in `802`/`803`/`810`/`820`/`830` are all the user's own repos.
+- User's call: drop `$git_status` from the format, keep `$git_branch`.
+  Edited `805` — removed `$git_status` from the format string and the
+  `[git_status]` table, replaced with an explanatory comment (why, CVE
+  reference, how to re-add if the tradeoff is ever wanted). Strengthened the
+  idempotency check: matching the palette line alone would have skipped
+  regenerating an already-deployed old (git_status-including) config
+  file — like this session's own sandbox has right now, since `805` was
+  live-verified on it before this fix — so the check now also requires the
+  literal `$git_status` token to be *absent* before calling a file current.
+- Verified both paths against a throwaway `$HOME`: fresh install writes
+  `git_branch`-only from the start; an old file seeded with the previous
+  git_status-including config gets correctly regenerated on next run, then
+  settles into a stable no-op after that.
+- `bash -n` + `shellcheck -S style -x` clean (one SC2016 false positive —
+  `'$git_status'` is a deliberate literal grep pattern, not shell expansion —
+  suppressed with an inline `shellcheck disable` comment). Committed
+  (`c79e4e7`), pushed. **This sandbox's own live `~/.config/starship.toml`
+  still has the old git_status-including config** — the script would fix it
+  on next run here, but hasn't been re-run against this actual `$HOME` yet,
+  only verified against throwaway ones.
+
 ## Open / deferred items
 
 - **First live evidence arrived in item 8 above** — the target machine is
