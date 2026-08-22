@@ -507,6 +507,59 @@ the username/hostname pass in item 5. Three real findings, all fixed:
   new logic — same array-entry pattern as every existing line). Committed,
   pushed. **Not yet run live.**
 
+### 14. New script: `805-starship-setup.sh` (user question about fish-tweak-tool → replicate its prompt without the trust issue)
+- User asked about `kirodubes/fish-tweak-tool` (a GTK4 fish configurator) —
+  checked compatibility and AUR requirements. Findings: not on AUR, not in
+  official repos, not in Chaotic AUR's mirror either — only distributed via
+  the author's own custom pacman repo (`erikdubois.github.io/nemesis_repo`)
+  added with `SigLevel = Never` (zero signature verification, a bigger trust
+  ask than plain AUR). Its actual dependencies (fish, fisher, gtk4,
+  python-gobject, optional starship/fastfetch) were all otherwise clean —
+  fisher just isn't packaged anywhere, normally curl-installed. Presented
+  "run from source" vs. "add the unsigned repo" as the two paths; user chose
+  to hold off on the tool itself.
+- Follow-up: this session's own sandbox turned out to already be configured
+  via fish-tweak-tool (separate from the target Arch machine). User liked
+  the resulting prompt (starship, powerline, "tide" palette) but not the
+  trust issue, and asked to replicate it directly.
+- Confirmed the prompt has **zero runtime dependency on fisher/fish-tweak-tool**:
+  `fisher list` was empty, no `fish_prompt.fish` function file existed —
+  starship (a standalone binary, official `extra` repo) owns the whole
+  prompt via `starship init fish`, reading a plain `~/.config/starship.toml`
+  not owned by any package.
+- New script `805-starship-setup.sh` (numbered right after `804-picom-setup.sh`,
+  same "new to this repo" category as picom — no starship setup in
+  artix-nemesis to port from): installs `starship` from the official repo,
+  writes the exact captured `starship.toml` (both `tide` and `kiro` palettes
+  defined, `PALETTE="tide"` top-of-file config var picks which one is
+  active — same one-line-swap pattern as `RGB_COLOR`/`TERM_OPACITY`), and
+  appends `function fish_greeting; end` + `starship init fish | source` to
+  `config.fish`, idempotent via marker checks.
+- **Real bug caught during verification, fixed before committing**: the
+  first attempt at capturing the live `starship.toml` into the script lost
+  every Nerd Font Private Use Area glyph except one (the powerline
+  separators, git-branch/python/nodejs/rust icons, lock, and clock symbols
+  all came through as empty `""` instead of their actual codepoints) —
+  something in the terminal-output → file-write path silently dropped
+  PUA-range characters that aren't in a rendered font. Caught by actually
+  running the script against a throwaway `HOME` and diffing byte-for-byte
+  against the live config (`python3` comparing decoded codepoints, not
+  visual `diff`, since the missing glyphs are invisible either way) rather
+  than trusting the copy-paste looked right. Fixed by patching the specific
+  lines with `chr(0xE0B0)` etc. (codepoint-constructed, not typed literally)
+  — confirmed the same transmission problem would have silently swallowed a
+  second literal-character attempt too. Re-verified byte-for-byte identical
+  to the live config after the fix, including idempotency (re-running
+  produces zero diff, no duplicate `config.fish` appends).
+- Nerd Font glyphs ride on `803`'s existing `ttf-jetbrains-mono-nerd`
+  (tofu-box fix) — no new font dependency.
+- `bash -n` + `shellcheck -S style -x` clean across the whole repo (fetched
+  the same static shellcheck binary approach as items 7/12 — still no
+  system install in this sandbox). Registered in `menu-fzf.sh`. Committed
+  (`dcbe75c`), pushed. **Not yet run live** on the actual target machine —
+  desk-verified (byte-identical output, idempotent) but not yet confirmed
+  the prompt renders correctly on real hardware/terminal.
+
 ## Open / deferred items
 
 - **First live evidence arrived in item 8 above** — the target machine is
