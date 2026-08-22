@@ -421,6 +421,23 @@ the username/hostname pass in item 5. Three real findings, all fixed:
   installed system-wide). Committed (`471ae3f`), pushed. **Not yet run
   live** — desk-reasoned like every fresh addition until confirmed on the
   actual machine, particularly the `Alacritty` WM_CLASS assumption.
+- **Live run surfaced a real bug, fixed same session**: user ran it and
+  reported the opposite of the intended effect — the *focused* terminal came
+  out dimmed, the *unfocused* one came out fully opaque. So the `Alacritty`
+  WM_CLASS guess was right (the rule was matching), but focus tracking
+  itself was backwards. Root cause: picom's default FocusIn/FocusOut-based
+  focus tracking doesn't reliably match dwm's actual focus state. Fix:
+  `use-ewmh-active-win = true` — dwm reliably sets/deletes
+  `_NET_ACTIVE_WINDOW` on root in its own `focus()` on every change, so
+  telling picom to trust that EWMH property instead of raw X focus events is
+  the documented fix for exactly this symptom on minimal WMs, not a
+  numeric-swap hack papering over the real cause. Idempotency marker in the
+  script updated to the new setting (was matching on the opacity-rule text
+  itself, which hadn't changed, so it would've skipped regeneration on a
+  re-run without this). `bash -n` + `shellcheck -S style -x` clean,
+  committed (`a6844c1`), pushed. **Not yet re-confirmed live** — the
+  original bug was caught live, but this fix itself hasn't been re-run on
+  the machine yet.
 
 ## Open / deferred items
 
@@ -444,8 +461,10 @@ the username/hostname pass in item 5. Three real findings, all fixed:
     without the old `command_user`/`chown /var/lib/mpd` dance.
   - `837`'s new `--list-devices` preflight actually showing device 2 as
     the motherboard on this install — confirm, don't assume.
-  - `804`'s picom opacity rule actually applying to the alacritty terminal
-    (depends on the assumed `Alacritty` WM_CLASS being correct — see item 12).
+  - `804`'s picom opacity rule: the `Alacritty` WM_CLASS match is confirmed
+    (item 12 — the rule was applying, just backwards), but the
+    `use-ewmh-active-win` fix for correct focused/unfocused direction hasn't
+    been re-run live yet.
 - `snapper-rollback` and `spnavcfg` are still AUR-only on Arch too — same
   "don't silently reach for AUR" policy as artix-nemesis carries over
   unchanged (opt-in via `801-chaotic-aur-setup.sh` + manual install only).
