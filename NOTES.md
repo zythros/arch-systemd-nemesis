@@ -461,8 +461,32 @@ the username/hostname pass in item 5. Three real findings, all fixed:
   - Idempotency marker bumped again (now keys off the focused rule being
     pinned to `100`) so a machine with either older config regenerates
     fully on next run rather than skipping. `bash -n` +
-    `shellcheck -S style -x` clean, committed (`d7f5e35`), pushed. **Not
-    yet run live.**
+    `shellcheck -S style -x` clean, committed (`d7f5e35`), pushed.
+- **Web search on the focus-tracking fix, then a design simplification**:
+  user asked whether the `use-ewmh-active-win` fix (item above) matches how
+  others solve this. Searched the web — the alacritty-opacity-for-crisp-text
+  half checks out cleanly against multiple independent sources (alacritty's
+  own docs literally call `window.opacity` "Background opacity"; Arch
+  Forums/LinuxQuestions threads draw the same background-vs-whole-window
+  distinction). The dwm focus-detection half was murkier than first
+  presented: real threads report `use-ewmh-active-win`,
+  `mark-ovredir-focused = false`, and just swapping the `focused`/`!focused`
+  conditions as *the* fix in different setups, with no consistent winner —
+  genuinely a "try it and see" situation, not the clean documented fix it
+  was framed as.
+  - User then asked whether using the *same* opacity for focused and
+    unfocused would solve the text problem too — yes, and better: with no
+    picom opacity-rule on the terminal at all, picom never needs to know
+    which window is focused for this feature, so the whole dwm
+    focus-detection uncertainty above becomes moot, not just worked around.
+  - Asked the user to confirm the tradeoff (losing the extra dim on
+    unfocus) before ripping out the split — confirmed. Simplified `804` to
+    a single constant `TERM_OPACITY` (alacritty.toml only), `picom.conf`
+    reduced to just `backend`/`vsync` (still required so the window's own
+    alpha channel renders at all — X11 doesn't blend a window's alpha
+    channel onto the desktop without a running compositor). Idempotency
+    marker updated again. `bash -n` + `shellcheck -S style -x` clean,
+    committed (`b12fbd9`), pushed. **Not yet run live.**
 
 ## Open / deferred items
 
@@ -486,10 +510,10 @@ the username/hostname pass in item 5. Three real findings, all fixed:
     without the old `command_user`/`chown /var/lib/mpd` dance.
   - `837`'s new `--list-devices` preflight actually showing device 2 as
     the motherboard on this install — confirm, don't assume.
-  - `804`'s picom opacity rule: the `Alacritty` WM_CLASS match is confirmed
-    (item 12 — the rule was applying, just backwards), but the
-    `use-ewmh-active-win` fix for correct focused/unfocused direction hasn't
-    been re-run live yet.
+  - `804`'s picom setup, current (simplified) form: constant alacritty.toml
+    opacity + no picom opacity-rule at all, superseding the earlier
+    focused/unfocused split and its `use-ewmh-active-win` fix (item 12) —
+    not yet run live in this form.
 - `snapper-rollback` and `spnavcfg` are still AUR-only on Arch too — same
   "don't silently reach for AUR" policy as artix-nemesis carries over
   unchanged (opt-in via `801-chaotic-aur-setup.sh` + manual install only).
