@@ -384,6 +384,44 @@ the username/hostname pass in item 5. Three real findings, all fixed:
   `QT_QPA_PLATFORMTHEME=qt5ct` `~/.xprofile` export also survived a fresh
   login as expected. Full item 11 fix verified end-to-end.
 
+### 12. New script: `804-picom-setup.sh` (user request: terminal opacity)
+- User asked for `803` to detect bare metal and install picom with terminal
+  opacity 90% active / 70% inactive — then, on second thought, asked for it
+  as its own script instead of folding into `803`.
+- New standalone script, numbered `804` (right after `803-apps-setup.sh`,
+  before `810-wallpaper-setup.sh` in both file order and `menu-fzf.sh`).
+  Genuinely new to this repo, not a port item — artix-nemesis has no picom
+  setup to port from, and dwm itself has no compositor of its own.
+- Bare-metal-only via `systemd-detect-virt`, same check `870` uses for
+  VM-only gating but inverted (exits 0 with a message if a VM is detected).
+  Reasoning: compositing on top of an already-virtualized/passed-through
+  display is pure overhead with no payoff for a cosmetic effect.
+- Installs `picom` via `pkg_install` (confirmed in official `extra` repo via
+  archlinux.org's file listing — same discipline as items 9/11), writes
+  `~/.config/picom/picom.conf` with an `opacity-rule` targeting the
+  terminal's WM_CLASS (`Alacritty` — alacritty's stock default per 802/803,
+  since neither script overrides `window.class`; **not verified against a
+  live `xprop`**, flagged in both the script's comments and its closing
+  output as something to spot-check), then autostarts picom via
+  `~/.xprofile` (same pattern as `803`'s polkit-gnome entry — dwm has no
+  session infrastructure of its own to launch a compositor).
+- `backend = "xrender"` chosen deliberately over `glx`: this machine has an
+  NVIDIA GPU (880/890), and glx compositing on the proprietary NVIDIA driver
+  is a known source of tearing/flicker unless separately tuned — xrender is
+  slower but reliably "just works" for a plain opacity effect. Left as an
+  easy one-line swap if `glx` is later confirmed stable on this hardware.
+  `mark-wmwin-focused`/`mark-ovredir-focused` also set, since dwm doesn't
+  fully implement the EWMH conventions some WMs rely on for picom's
+  `focused` condition to track correctly.
+- `TERM_CLASS`/`OPACITY_ACTIVE`/`OPACITY_INACTIVE` are top-of-file config
+  variables (same pattern as `RGB_COLOR` in `837`), so retargeting a
+  different terminal or opacity level is a one-line edit.
+- `bash -n` + `shellcheck -S style -x` clean (fetched the same static
+  shellcheck binary approach as item 7, this sandbox still has none
+  installed system-wide). Committed (`471ae3f`), pushed. **Not yet run
+  live** — desk-reasoned like every fresh addition until confirmed on the
+  actual machine, particularly the `Alacritty` WM_CLASS assumption.
+
 ## Open / deferred items
 
 - **First live evidence arrived in item 8 above** — the target machine is
@@ -406,6 +444,8 @@ the username/hostname pass in item 5. Three real findings, all fixed:
     without the old `command_user`/`chown /var/lib/mpd` dance.
   - `837`'s new `--list-devices` preflight actually showing device 2 as
     the motherboard on this install — confirm, don't assume.
+  - `804`'s picom opacity rule actually applying to the alacritty terminal
+    (depends on the assumed `Alacritty` WM_CLASS being correct — see item 12).
 - `snapper-rollback` and `spnavcfg` are still AUR-only on Arch too — same
   "don't silently reach for AUR" policy as artix-nemesis carries over
   unchanged (opt-in via `801-chaotic-aur-setup.sh` + manual install only).
