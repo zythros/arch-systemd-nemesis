@@ -3,21 +3,32 @@ source "$(dirname "$(readlink -f "$0")")/lib.sh"
 ##################################################################################################################################
 # Author    : zythros
 # Purpose   : Install picom (X11 compositor) and make the terminal (alacritty,
-#             per 802/803) translucent: ~90% opacity when focused, ~70% when
-#             unfocused. Bare metal only — skips automatically inside a VM,
-#             matching 870's VM-only check but inverted: extra GPU compositing
-#             on top of an already-virtualized/passed-through display is a
-#             cost with no real payoff for a purely cosmetic effect.
+#             per 802/803) translucent at a constant opacity. Bare metal
+#             only — skips automatically inside a VM, matching 870's VM-only
+#             check but inverted: extra GPU compositing on top of an
+#             already-virtualized/passed-through display is a cost with no
+#             real payoff for a purely cosmetic effect.
 #
-#             Split across two mechanisms deliberately, not one picom
-#             opacity-rule for both states — see Step 2/3 comments below:
-#             picom composites a whole window's pixels uniformly, so any
-#             picom-level opacity dims the text along with the background.
-#             Alacritty's own window.opacity only touches the background
-#             (glyphs are drawn separately at full alpha), so the *focused*
-#             opacity comes from alacritty directly — text stays fully crisp
-#             — and picom only ever adds extra dimming on top for the
-#             *unfocused* case, where touching the text too is fine.
+#             Deliberately one constant opacity, not a focused/unfocused
+#             split: picom composites a whole window's pixels uniformly, so
+#             any picom-level opacity-rule dims the text along with the
+#             background — confirmed live. The fix that keeps text crisp is
+#             alacritty's own [window] opacity (only fades the background
+#             fill; glyphs are drawn at full alpha regardless), set once
+#             here in alacritty.toml. picom itself gets no opacity-rule for
+#             the terminal at all — with none, it passes the window's own
+#             alpha through untouched, so text stays crisp in every state.
+#             The tradeoff: no extra dimming when unfocused. That's also
+#             what sidesteps a real dwm-specific gotcha: picom's
+#             focused/!focused detection is unreliable under dwm (confirmed
+#             live — options like use-ewmh-active-win, mark-ovredir-focused,
+#             or swapping the rule conditions are all reported fixes for
+#             different setups, no consistent winner), so not depending on
+#             focus tracking at all removes that whole failure mode.
+#
+#             picom is still required infrastructure even with no
+#             opacity-rule: X11 doesn't blend a window's alpha channel onto
+#             the desktop without a running compositor.
 #
 #             New to this repo — artix-nemesis has no picom setup to port
 #             from, and dwm itself has no compositor of its own.
@@ -28,21 +39,10 @@ source "$(dirname "$(readlink -f "$0")")/lib.sh"
 ##################################################################################################################################
 
 # ── Config ───────────────────────────────────────────────────────────────
-# TERM_CLASS must match the terminal's WM_CLASS. "Alacritty" is alacritty's
-# default (unverified against a live `xprop` — alacritty.toml in 803 doesn't
-# override window.class, so this is the stock default). If opacity doesn't
-# apply, run `xprop WM_CLASS` on the terminal window and fix this.
-TERM_CLASS="Alacritty"
-# OPACITY_ACTIVE: alacritty's own background opacity (%), applied directly
-# in alacritty.toml — this is what the focused terminal actually shows.
-# Text is untouched by this (alacritty renders glyphs at full alpha
-# regardless of window.opacity).
-OPACITY_ACTIVE=90
-# OPACITY_INACTIVE: target *overall* opacity (%) when unfocused. picom
-# applies an extra dim on top of OPACITY_ACTIVE to reach this (see Step 3) —
-# it's the only one of the two that also touches text, since picom can't
-# tell background from glyphs, which is fine for the unfocused case.
-OPACITY_INACTIVE=70
+# TERM_OPACITY: alacritty's background opacity (%), set directly in
+# alacritty.toml. Applies constantly, focused or not. Text is untouched by
+# this — alacritty renders glyphs at full alpha regardless of window.opacity.
+TERM_OPACITY=90
 # ─────────────────────────────────────────────────────────────────────────
 
 if [ "$DEBUG" = true ]; then
@@ -105,21 +105,21 @@ fi
 
 ##################################################################################################################################
 # Step 2: Set alacritty's own background opacity — this, not picom, is what
-# the focused terminal shows. alacritty.toml's [window] opacity only fades
-# the background fill; glyphs are drawn at full alpha regardless, so text
-# stays fully crisp no matter how transparent the background gets. (803
-# writes alacritty.toml's [window] section without an opacity key — patched
-# in here rather than in 803, since the opacity value is this script's
+# the terminal shows. alacritty.toml's [window] opacity only fades the
+# background fill; glyphs are drawn at full alpha regardless, so text stays
+# fully crisp no matter how transparent the background gets. (803 writes
+# alacritty.toml's [window] section without an opacity key — patched in
+# here rather than in 803, since the opacity value is this script's
 # concern, not the base terminal config's.)
 ##################################################################################################################################
 
 echo
 tput setaf 3
-echo "── Setting alacritty background opacity to ${OPACITY_ACTIVE}% (text unaffected) ──"
+echo "── Setting alacritty background opacity to ${TERM_OPACITY}% (text unaffected) ──"
 tput sgr0
 
 ALACRITTY_CONF="$HOME/.config/alacritty/alacritty.toml"
-ALACRITTY_OPACITY=$(awk -v v="$OPACITY_ACTIVE" 'BEGIN{printf "%.2f", v/100}')
+ALACRITTY_OPACITY=$(awk -v v="$TERM_OPACITY" 'BEGIN{printf "%.2f", v/100}')
 
 mkdir -p "$(dirname "$ALACRITTY_CONF")"
 if [ ! -f "$ALACRITTY_CONF" ]; then
@@ -147,74 +147,36 @@ fi
 # xrender backend chosen over glx for compatibility — this machine has an
 # NVIDIA GPU (see 880/890), and glx compositing on the proprietary NVIDIA
 # driver is a common source of tearing/flicker unless separately tuned.
-# xrender is slower but "just works" for a plain opacity effect. Switch to
-# "glx" here if you've verified it's stable on this hardware.
+# xrender is slower but "just works" here.
 #
-# use-ewmh-active-win: confirmed live that without this, picom's default
-# FocusIn/FocusOut-based focus tracking gets it backwards under dwm — the
-# focused terminal came out dimmed (the !focused rule) and the unfocused one
-# came out fully opaque (the focused rule), i.e. exactly inverted. dwm
-# reliably maintains _NET_ACTIVE_WINDOW itself (sets/deletes it on root in
-# its own focus() on every focus change), so telling picom to trust that
-# property instead of raw X focus events is the documented fix for "focused
-# condition is backwards on a minimal WM", not a coincidence-only guess.
-#
-# mark-wmwin-focused / mark-ovredir-focused: unrelated edge case (WM
-# decoration / override-redirect windows with no WM_TRANSIENT_FOR) — kept,
-# harmless, but use-ewmh-active-win above is what actually fixes focus
-# tracking for normal client windows like the terminal.
-#
-# opacity-rule below is *not* symmetric on purpose (unlike a naive first
-# pass at this): the focused case is pinned to 100 (i.e. picom leaves it
-# alone) so alacritty's own OPACITY_ACTIVE background opacity from Step 2 is
-# the only thing determining the focused terminal's look — text stays
-# crisp. The unfocused case gets a *relative* multiplier
-# (OPACITY_INACTIVE / OPACITY_ACTIVE) instead of OPACITY_INACTIVE directly,
-# so it compounds with Step 2's base opacity to land on the actual target
-# OPACITY_INACTIVE overall, e.g. 90% (alacritty) × 78% (picom) ≈ 70%.
+# Deliberately no opacity-rule at all: Step 2's alacritty.toml opacity is
+# the only opacity control for the terminal. picom is only needed so the
+# window's own alpha channel actually blends onto the desktop — no
+# per-window rule means no focus tracking is involved and no risk of
+# picom's focused/!focused detection (unreliable under dwm — see header
+# comment) touching this window's opacity, or its text, at all.
 ##################################################################################################################################
-
-REL_INACTIVE=$(awk -v a="$OPACITY_ACTIVE" -v i="$OPACITY_INACTIVE" 'BEGIN{printf "%.0f", (i*100)/a}')
 
 echo
 tput setaf 3
-echo "── Writing picom.conf (terminal opacity: ${OPACITY_ACTIVE}% active / ~${OPACITY_INACTIVE}% inactive) ──"
+echo "── Writing picom.conf (compositor only — opacity is alacritty's job) ──"
 tput sgr0
 
 PICOM_CONF="$HOME/.config/picom/picom.conf"
-MARKER="100:class_g = '$TERM_CLASS' && focused"
+MARKER="opacity is alacritty's job"
 
 if grep -qF "$MARKER" "$PICOM_CONF" 2>/dev/null; then
-    echo "  → $PICOM_CONF already has the $TERM_CLASS opacity rule — skipping."
+    echo "  → $PICOM_CONF already in the current (no opacity-rule) form — skipping."
 else
     mkdir -p "$(dirname "$PICOM_CONF")"
-    cat > "$PICOM_CONF" <<EOF
+    cat > "$PICOM_CONF" <<'EOF'
 # Written by 804-picom-setup.sh — re-run that script to regenerate.
+# No opacity-rule here on purpose: opacity is alacritty's job (see
+# alacritty.toml's [window] opacity, set by 804-picom-setup.sh's Step 2).
+# picom is just here so a window's own alpha channel actually renders.
 
 backend = "xrender";
 vsync = true;
-
-# dwm maintains _NET_ACTIVE_WINDOW reliably (see comment in
-# 804-picom-setup.sh) — use it instead of raw FocusIn/FocusOut tracking,
-# which was confirmed live to report focus backwards under dwm.
-use-ewmh-active-win = true;
-
-mark-wmwin-focused = true;
-mark-ovredir-focused = true;
-
-# Fade between opacity levels on focus change instead of an instant jump
-fading = true;
-fade-in-step = 0.06;
-fade-out-step = 0.06;
-
-# Focused: left at 100 (untouched) -- alacritty.toml's own [window] opacity
-# (Step 2) is what shows, so the text stays fully crisp. Unfocused: an
-# additional relative dim on top of that base, landing on ~$OPACITY_INACTIVE%
-# overall ($OPACITY_ACTIVE% alacritty x $REL_INACTIVE% picom).
-opacity-rule = [
-    "100:class_g = '$TERM_CLASS' && focused",
-    "$REL_INACTIVE:class_g = '$TERM_CLASS' && !focused"
-];
 EOF
     tput setaf 2; echo "  → wrote $PICOM_CONF"; tput sgr0
 fi
@@ -255,11 +217,7 @@ echo "picom will start automatically on next login (~/.xprofile is sourced by"
 echo "SDDM before session start). To apply now without logging out:"
 echo "  picom --config $PICOM_CONF -b"
 echo "Restart alacritty (or reload its config) to pick up the new window.opacity."
-echo "Focused terminal: ${OPACITY_ACTIVE}% opacity, set directly in alacritty.toml —"
-echo "text stays fully crisp. Unfocused: picom dims it further to ~${OPACITY_INACTIVE}%"
-echo "overall (this pass does affect text too, which is expected/fine when unfocused)."
-echo "If the $TERM_CLASS terminal doesn't pick up the opacity, confirm its"
-echo "actual WM_CLASS with 'xprop WM_CLASS' and update TERM_CLASS at the top"
-echo "of this script."
+echo "Terminal opacity: ${TERM_OPACITY}%, constant regardless of focus, set"
+echo "directly in alacritty.toml — text stays fully crisp in every state."
 tput sgr0
 echo

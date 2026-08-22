@@ -21,7 +21,7 @@ ENTRIES=(
     "801-chaotic-aur-setup.sh"  "Add Chaotic AUR pre-built repo to pacman + install yay (optional — nothing else here requires it)"
     "802-dwm-setup.sh"          "Build and install dwm window manager"
     "803-apps-setup.sh"         "Install preferred apps"
-    "804-picom-setup.sh"        "Install picom; terminal opacity 90% active / 70% inactive (bare metal only)"
+    "804-picom-setup.sh"        "Install picom; constant terminal opacity 90%, text stays crisp (bare metal only)"
     "810-wallpaper-setup.sh"    "Set up wallpaper cycling system"
     "820-dmenu-setup.sh"        "Build dmenu; wire j4-dmenu-desktop into dwm"
     "830-slstatus-setup.sh"     "Build slstatus; write CPU/RAM/datetime to DWM bar"
