@@ -95,9 +95,19 @@ fi
 # xrender is slower but "just works" for a plain opacity effect. Switch to
 # "glx" here if you've verified it's stable on this hardware.
 #
-# mark-wmwin-focused / mark-ovredir-focused: dwm doesn't fully implement the
-# EWMH _NET_ACTIVE_WINDOW conventions some WMs rely on for picom's "focused"
-# condition — these two make focus tracking work reliably without it.
+# use-ewmh-active-win: confirmed live that without this, picom's default
+# FocusIn/FocusOut-based focus tracking gets it backwards under dwm — the
+# focused terminal came out dimmed (the !focused rule) and the unfocused one
+# came out fully opaque (the focused rule), i.e. exactly inverted. dwm
+# reliably maintains _NET_ACTIVE_WINDOW itself (sets/deletes it on root in
+# its own focus() on every focus change), so telling picom to trust that
+# property instead of raw X focus events is the documented fix for "focused
+# condition is backwards on a minimal WM", not a coincidence-only guess.
+#
+# mark-wmwin-focused / mark-ovredir-focused: unrelated edge case (WM
+# decoration / override-redirect windows with no WM_TRANSIENT_FOR) — kept,
+# harmless, but use-ewmh-active-win above is what actually fixes focus
+# tracking for normal client windows like the terminal.
 ##################################################################################################################################
 
 echo
@@ -106,7 +116,7 @@ echo "── Writing picom.conf (terminal opacity: ${OPACITY_ACTIVE}% active / $
 tput sgr0
 
 PICOM_CONF="$HOME/.config/picom/picom.conf"
-MARKER="class_g = '$TERM_CLASS' && focused"
+MARKER="use-ewmh-active-win = true"
 
 if grep -qF "$MARKER" "$PICOM_CONF" 2>/dev/null; then
     echo "  → $PICOM_CONF already has the $TERM_CLASS opacity rule — skipping."
@@ -117,6 +127,11 @@ else
 
 backend = "xrender";
 vsync = true;
+
+# dwm maintains _NET_ACTIVE_WINDOW reliably (see comment in
+# 804-picom-setup.sh) — use it instead of raw FocusIn/FocusOut tracking,
+# which was confirmed live to report focus backwards under dwm.
+use-ewmh-active-win = true;
 
 mark-wmwin-focused = true;
 mark-ovredir-focused = true;
