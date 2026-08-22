@@ -486,7 +486,13 @@ the username/hostname pass in item 5. Three real findings, all fixed:
     alpha channel renders at all — X11 doesn't blend a window's alpha
     channel onto the desktop without a running compositor). Idempotency
     marker updated again. `bash -n` + `shellcheck -S style -x` clean,
-    committed (`b12fbd9`), pushed. **Not yet run live.**
+    committed (`b12fbd9`), pushed. **Confirmed working live**: user pulled,
+    re-ran `804`, restarted alacritty — constant 90% opacity with fully
+    crisp text, no picom involvement needed for the terminal beyond running
+    as the compositor. Item 12's whole opacity-rule/focus-tracking chase
+    (items 12 and this one) is now resolved via the simpler design, not the
+    `use-ewmh-active-win` fix — that fix is superseded, not something to
+    revisit.
 
 ## Open / deferred items
 
@@ -510,10 +516,6 @@ the username/hostname pass in item 5. Three real findings, all fixed:
     without the old `command_user`/`chown /var/lib/mpd` dance.
   - `837`'s new `--list-devices` preflight actually showing device 2 as
     the motherboard on this install — confirm, don't assume.
-  - `804`'s picom setup, current (simplified) form: constant alacritty.toml
-    opacity + no picom opacity-rule at all, superseding the earlier
-    focused/unfocused split and its `use-ewmh-active-win` fix (item 12) —
-    not yet run live in this form.
 - `snapper-rollback` and `spnavcfg` are still AUR-only on Arch too — same
   "don't silently reach for AUR" policy as artix-nemesis carries over
   unchanged (opt-in via `801-chaotic-aur-setup.sh` + manual install only).
