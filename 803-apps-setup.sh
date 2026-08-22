@@ -61,6 +61,7 @@ APPS=(
                            # AUR, confirmed live), disabled by default (run 801 + uncomment to opt in)
     darktable            # RAW photo editor
     vlc                  # media player (codecs: libdvdcss libdvdread libdvdnav libbluray libaacs auto-installed)
+    vlc-plugins-all      # full VLC plugin set (extra codecs/output backends beyond the base install)
     kdenlive             # video editor
     krename              # batch file renamer
     flameshot            # screenshot tool with annotation

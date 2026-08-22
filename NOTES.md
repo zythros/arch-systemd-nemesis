@@ -494,6 +494,19 @@ the username/hostname pass in item 5. Three real findings, all fixed:
     `use-ewmh-active-win` fix — that fix is superseded, not something to
     revisit.
 
+### 13. Added `vlc-plugins-all` to `803` (user request)
+- User asked to add `vlc-plugins-all` alongside `vlc` in `803`'s `APPS`.
+  Confirmed via archlinux.org's package API before adding (same discipline
+  as items 9/11): official `extra` repo, `pkgbase=vlc`, meta-package
+  pulling in the full plugin set (firewire/fluidsynth/gstreamer/jack/lua/
+  smb/svg/x264/x265/etc.) beyond the base install. No `post_install` fixup
+  needed — it's a plain dependency-pulling meta-package, not a
+  codec-that-needs-a-manual-check like the existing `vlc)` case.
+- `bash -n` clean. Not re-run through shellcheck this session (no static
+  binary cached, and the change is a single array-line addition with no
+  new logic — same array-entry pattern as every existing line). Committed,
+  pushed. **Not yet run live.**
+
 ## Open / deferred items
 
 - **First live evidence arrived in item 8 above** — the target machine is
