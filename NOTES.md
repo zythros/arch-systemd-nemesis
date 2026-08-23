@@ -601,6 +601,59 @@ the username/hostname pass in item 5. Three real findings, all fixed:
   on next run here, but hasn't been re-run against this actual `$HOME` yet,
   only verified against throwaway ones.
 
+### 16. `861` fix: MPD had zero authentication despite listening on all interfaces
+- User asked directly whether anything pushed to GitHub exposes them to
+  attack. Checked properly rather than assuming: full secret-pattern scan
+  across the current tree *and* full git history (`git log --all -p`) —
+  clean, nothing ever committed. Real finding was in what the scripts
+  actually deploy, not in the repo's own text: `861`'s `mpd.conf` had
+  `bind_to_address "any"` (deliberate — phone-app-style remote control) with
+  **no `password` directive at all** — anyone reaching port 6600 (whole LAN
+  at minimum) got full unauthenticated control, plus `input{curl}` meaning
+  it could be told to fetch arbitrary URLs. Lower-severity secondary items
+  also surfaced: `836`'s printer IP (private RFC1918 space, low value on
+  its own but hands a LAN-side attacker a target for free) and the
+  `zythros <lv-claude@bytz.me>` commit identity now permanently public in
+  this repo's history — noted, no action taken on either (not fixable via a
+  script, and the printer IP needs to stay for the printer to work).
+- User asked to fix the MPD issue. Real design question: MPD's
+  `default_permissions` applies globally, not per-listener — so naively
+  requiring a password would also lock out the local unix socket that
+  `rmpc`/`mpc` rely on for full functionality (comment in the original file
+  already noted the socket was "required for rmpc add"). Found the actual
+  fix via MPD's own docs: `local_permissions` exists specifically to grant
+  the unix socket different (here: full) permissions independent of
+  `default_permissions`, since reaching that socket at all already requires
+  local OS-level access to `$XDG_RUNTIME_DIR` — a genuinely different trust
+  boundary than an open TCP port, not just "the same risk, closer to home."
+- Fix in `861-mpd-setup.sh`: `default_permissions ""` (anonymous gets
+  nothing) + `local_permissions "read,add,control,player,admin"` (socket
+  stays fully trusted) + a generated `password` required for every TCP
+  connection — which includes `rmpc`'s own default `127.0.0.1:6600`, so the
+  script now also patches rmpc's bootstrapped `config.ron` to carry the
+  password automatically (verified via web search that rmpc supports a
+  `password: Some("...")` field for exactly this). Password generated once
+  via `/dev/urandom`, then read back out of the existing `mpd.conf` on every
+  re-run — that file was already being rewritten unconditionally on every
+  run with no idempotency guard at all, so without this a re-run would've
+  silently rotated the password out from under an already-configured phone
+  app. Both `mpd.conf` and `config.ron` now `chmod 600` (defense in depth —
+  plaintext password lives in both).
+- Verification note, since `rmpc` isn't installed in this sandbox to test
+  against directly: built a stub-command harness (`pacman`/`sudo`/
+  `systemctl`/`loginctl`/`rmpc` all replaced with safe fakes in a
+  PATH-prepended dir) and ran the **real** script end-to-end against a
+  throwaway `$HOME` three times — fresh install, idempotent re-run
+  (byte-identical files, password reused, both writes correctly skipped),
+  and upgrading a simulated pre-fix machine (old `mpd.conf` with no
+  password, old `rmpc` config with `password: None`) — all three came out
+  correct. The rmpc `config.ron` patch also has a verify-and-warn fallback
+  (checks the substitution actually landed before declaring success) since
+  its exact format couldn't be confirmed against the real binary here.
+- `bash -n` + `shellcheck -S style -x` clean across the whole repo.
+  Committed (`860909d`), pushed. **Not yet run on the actual target
+  machine** — verified via the stub harness against throwaway homes only.
+
 ## Open / deferred items
 
 - **First live evidence arrived in item 8 above** — the target machine is
