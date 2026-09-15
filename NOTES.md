@@ -654,6 +654,41 @@ the username/hostname pass in item 5. Three real findings, all fixed:
   Committed (`860909d`), pushed. **Not yet run on the actual target
   machine** — verified via the stub harness against throwaway homes only.
 
+### 17. New `806`: stop SDDM and dwm from letting the display sleep
+- User asked for a script to keep the screen from blanking/powering down
+  under SDDM and dwm. Neither carries any display-power logic of its own —
+  this is plain X11 DPMS (monitor standby/suspend/off) plus the X
+  screensaver's own blanking timer, both defaulted on by Xorg.
+- Two-layer fix, same defense-in-depth shape as `861`'s
+  `local_permissions` + per-connection password: (1)
+  `/etc/X11/xorg.conf.d/10-disable-dpms.conf` — a `ServerFlags` block
+  turning the DPMS extension off outright and zeroing `BlankTime`/
+  `StandbyTime`/`SuspendTime`/`OffTime`. Read by *any* Xorg instance on the
+  box, including the one SDDM starts for its own greeter before a user
+  session exists — so the login screen stops blanking too, not just dwm.
+  (2) `xset s off -dpms &` appended to `~/.xprofile`, same autostart
+  pattern `804`/`810`/`830`/`870` already use — closes the gap where some
+  other piece of session software calls `xset +dpms` or forces a DPMS
+  state at runtime after the system-level config already zeroed the
+  timers.
+- Noted but deliberately not touched: SDDM's `Xsetup` script (redundant
+  once the system-wide xorg.conf.d file is in place, and a vendor-shipped
+  script is a worse place to hang custom state than a dedicated conf.d
+  file) and console/tty blanking (`setterm`/`consoleblank` — separate
+  mechanism, out of scope since the ask was specifically about the X
+  session, not a bare VT).
+- Idempotency verified against a throwaway `$HOME` with a stub `sudo`: the
+  xorg.conf.d write is skipped on a byte-identical re-run (`diff`-gated),
+  and the `~/.xprofile` line is only appended once (`grep -qF`-gated) —
+  confirmed by running the real script twice and diffing the file between
+  runs. `bash -n` clean; `shellcheck` isn't installed in this sandbox so
+  couldn't be run this session (flagged as a gap, not skipped silently).
+- Also wired into `menu-fzf.sh`'s `ENTRIES` list, ordered between `805`
+  and `810` to match the numbering. **Not yet run on the actual target
+  machine** — the xorg.conf.d change specifically needs a live SDDM/Xorg
+  round-trip (greeter restart or reboot) to confirm the login screen
+  itself stops blanking, which a throwaway sandbox can't exercise.
+
 ## Open / deferred items
 
 - **First live evidence arrived in item 8 above** — the target machine is
