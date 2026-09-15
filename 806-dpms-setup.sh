@@ -99,10 +99,21 @@ fi
 ##################################################################################################################################
 # 2. Session-level enforcement via ~/.xprofile — same autostart pattern as
 #    804/810/830/870. Catches anything that re-arms DPMS after login.
+#
+#    xset ships in the separate xorg-xset package (xorg-apps group), NOT as
+#    part of xorg-server — 802/803 never pull it in, so a stock install of
+#    this repo's scripts doesn't have it. Without this, the line below was
+#    silently a no-op every login (`command not found`, backgrounded so
+#    nothing surfaced the failure).
 ##################################################################################################################################
 
 echo
 echo "── dwm session (~/.xprofile) ──────────────────────────────────────────"
+
+if ! command -v xset &>/dev/null; then
+    echo "  → Installing xorg-xset (provides xset, not part of xorg-server) ..."
+    pkg_install xorg-xset
+fi
 
 XPROFILE="$HOME/.xprofile"
 DPMS_LINE='xset s off -dpms &'
