@@ -684,10 +684,23 @@ the username/hostname pass in item 5. Three real findings, all fixed:
   runs. `bash -n` clean; `shellcheck` isn't installed in this sandbox so
   couldn't be run this session (flagged as a gap, not skipped silently).
 - Also wired into `menu-fzf.sh`'s `ENTRIES` list, ordered between `805`
-  and `810` to match the numbering. **Not yet run on the actual target
-  machine** — the xorg.conf.d change specifically needs a live SDDM/Xorg
-  round-trip (greeter restart or reboot) to confirm the login screen
-  itself stops blanking, which a throwaway sandbox can't exercise.
+  and `810` to match the numbering.
+- **First live run failed**: user ran `806` + rebooted, display still
+  blanked after ~5 min. Root cause, found via targeted diagnosis rather
+  than guessing: `xset` isn't part of a stock dwm/SDDM install on this
+  repo — it ships in the separate `xorg-xset` package (`xorg-apps` group),
+  not `xorg-server`, and `802`/`803` never pull it in. The `~/.xprofile`
+  line (`xset s off -dpms &`) was silently a no-op every login —
+  `command not found`, backgrounded so nothing ever surfaced the failure.
+  Confirmed by the user hitting `fish: Unknown command: xset` when asked
+  to inspect state directly.
+- Fix: `806` now does `command -v xset || pkg_install xorg-xset` before
+  touching `~/.xprofile`, so the package is guaranteed present before the
+  line that depends on it is ever written. Committed (`3f2ab3a`), pushed.
+- **User re-ran `806` on the target machine after `git pull` — confirmed
+  working.** This is the first fully live-verified confirmation for this
+  script (xorg.conf.d layer + xprofile layer both landing correctly on
+  real SDDM/dwm hardware), not just a throwaway-sandbox idempotency check.
 
 ## Open / deferred items
 
